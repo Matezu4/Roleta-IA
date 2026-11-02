@@ -55,7 +55,7 @@ a.btn{display:inline-block;text-decoration:none}
 
 /* aluno */
 .narrow{max-width:520px;margin:0 auto}
-input[type=text]{
+input[type=text],input[type=password]{
   width:100%;font:inherit;font-size:1.3rem;color:var(--ink);background:var(--bg);
   border:3px solid var(--line);border-radius:12px;padding:12px 14px;margin:6px 0 14px;
 }
@@ -95,6 +95,7 @@ dialog::backdrop{background:rgba(10,20,40,.7)}
 .qrgrande{background:#fff;padding:10px;border-radius:10px;width:min(78vmin,560px);height:min(78vmin,560px);margin:0 auto 12px}
 .qrgrande svg{width:100%;height:100%;display:block}
 .sec{margin-top:20px}
+.pin{font-family:Fredoka,sans-serif;font-size:1.7rem;letter-spacing:.18em}
 .aluno-larg{max-width:720px;margin:0 auto}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;align-items:start}
 .lista-envios{display:grid;gap:12px}
@@ -137,7 +138,20 @@ dialog.largo{width:min(1000px,94vw);max-height:92vh}
   <div class="card narrow hide" id="feitoAluno">
     <h2 id="feitoTitulo">Pronto!</h2>
     <p>Seu nome já está na roleta. Agora é só esperar o sorteio.</p>
-    <button class="btn ghost" id="btnOutroNome">Escrever outro nome</button>
+    <p class="muted">Cada aluno entra uma única vez.</p>
+  </div>
+
+  <div class="narrow sec" style="text-align:center"><button class="btn ghost peq" id="btnProfAluno" type="button">Sou o professor</button></div>
+  <div class="card narrow sec hide" id="cardProfAluno">
+    <h2>Adicionar aluno (professor)</h2>
+    <p class="muted">Para quem não conseguiu entrar ou não tem celular. A senha aparece na tela do professor.</p>
+    <label class="lbl" for="inSenha">Senha do professor</label>
+    <input type="password" id="inSenha" inputmode="numeric" autocomplete="off" maxlength="12">
+    <label class="lbl" for="inNomeConv">Nome do aluno</label>
+    <input type="text" id="inNomeConv" maxlength="30" autocomplete="off" autocapitalize="words" enterkeyhint="send">
+    <button class="btn" id="btnAddConv" type="button">Adicionar aluno</button>
+    <p id="msgConv" class="muted" style="margin-top:12px" aria-live="polite"></p>
+    <div class="chips" id="listaConv"></div>
   </div>
 
   <div class="card narrow sec hide" id="cardCartilha">
@@ -212,6 +226,10 @@ dialog.largo{width:min(1000px,94vw);max-height:92vh}
             </div>
           </div>
         </div>
+        <div style="margin-top:12px">
+          <p class="muted" style="margin-bottom:4px">Senha do professor: abra o link acima, toque em <b>Sou o professor</b> e digite a senha para adicionar alunos que não conseguiram entrar.</p>
+          <div class="row"><strong class="pin" id="pinProf">••••••</strong><button class="btn ghost peq" id="btnPin" type="button">Mostrar</button></div>
+        </div>
       </div>
 
       <div>
@@ -285,7 +303,7 @@ dialog.largo{width:min(1000px,94vw);max-height:92vh}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+import { getDatabase, ref, set, push, get, onValue, remove } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
 /* ====== CONFIGURAÇÃO: cole aqui os dados do seu projeto Firebase (veja o LEIA-ME) ====== */
 const FIREBASE_CONFIG = {
@@ -314,7 +332,8 @@ const state = {
   remote: [],                              // [{id, nome}]
   manual: store.get("roleta.manual", []),
   drawn:  store.get("roleta.drawn", []),
-  angle: 0, spinning: false, unsubs: [], envios: {}, imagens: {}, muralItens: []
+  angle: 0, spinning: false, unsubs: [], envios: {}, imagens: {}, muralItens: [],
+  pin: "", pinVisivel: false, alunosDb: {}, convDb: {}
 };
 const PALETA = ["#FFC93C", "#4F7BE8", "#FFFFFF", "#7FD1AE", "#FF8A6B"];
 const TEXTO  = ["#14284B", "#FFFFFF", "#14284B", "#14284B", "#14284B"];
@@ -350,6 +369,11 @@ const ALFABETO = "abcdefghjkmnpqrstuvwxyz23456789";
 function novoCodigo(){
   const b = new Uint8Array(6); crypto.getRandomValues(b);
   return Array.from(b, x => ALFABETO[x % ALFABETO.length]).join("");
+}
+
+function novoPin(){
+  const b = new Uint8Array(6); crypto.getRandomValues(b);
+  return Array.from(b, x => x % 10).join("");
 }
 
 /* ---------- rotas ---------- */
@@ -436,7 +460,7 @@ async function comprimir(file){
   } finally { URL.revokeObjectURL(url); }
 }
 
-/* ====================== ALUNO ======================*/
+/* ====================== ALUNO ====================== */
 let alunoIniciado = false;
 function iniciaAluno(){
   if (alunoIniciado) return; alunoIniciado = true;
@@ -458,7 +482,20 @@ function iniciaAluno(){
     $("#feitoTitulo").textContent = "Pronto, " + nome + "!";
     abreCompartilhar();
   };
+  const mostraForm = () => {
+    $("#feitoAluno").classList.add("hide"); $("#blocoCompartilhar").classList.add("hide"); $("#formAluno").classList.remove("hide");
+  };
+  const caminhoMeu = uid => ref(db, `turmas/${codigoAluno}/alunos/${uid}`);
   if (jaEnviado) mostraFeito(jaEnviado);
+  // confere no banco (vale mesmo que o aluno tenha limpado os dados do navegador)
+  (async () => {
+    try{
+      const uid = await conectar();
+      const v = (await espera(get(caminhoMeu(uid)), 12000, "confere")).val();
+      if (v){ store.set(chave, limpa(v)); mostraFeito(limpa(v)); }
+      else if (jaEnviado){ store.del(chave); mostraForm(); }   // o professor tirou o nome da lista
+    }catch(e){ /* sem rede ou sem permissão: fica como o aparelho sabe */ }
+  })();
 
   async function enviar(){
     const nome = limpa($("#inNome").value);
@@ -466,8 +503,11 @@ function iniciaAluno(){
     if (!nome){ msg.className = "warn"; msg.textContent = "Escreva o seu nome para entrar."; return; }
     $("#btnEnviar").disabled = true; msg.className = "muted"; msg.textContent = "Enviando...";
     try{
-      await conectar();
-      await espera(push(ref(db, `turmas/${codigoAluno}/alunos`), nome), 12000, "envio");
+      const uid = await conectar();
+      let ja = null;
+      try{ ja = (await espera(get(caminhoMeu(uid)), 12000, "confere")).val(); }catch(e){}
+      if (ja){ store.set(chave, limpa(ja)); msg.textContent = ""; mostraFeito(limpa(ja)); $("#btnEnviar").disabled = false; return; }
+      await espera(set(caminhoMeu(uid), nome), 12000, "envio");
       store.set(chave, nome); msg.textContent = ""; mostraFeito(nome);
     }catch(e){
       msg.className = "warn";
@@ -515,10 +555,34 @@ function iniciaAluno(){
   });
   $("#btnEnviar").addEventListener("click", enviar);
   $("#inNome").addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
-  $("#btnOutroNome").addEventListener("click", () => {
-    store.del(chave); $("#inNome").value = "";
-    $("#feitoAluno").classList.add("hide"); $("#formAluno").classList.remove("hide"); $("#inNome").focus();
+
+  /* professor adicionando alunos pelo link (precisa da senha mostrada na tela do professor) */
+  const convAdicionados = [];
+  $("#btnProfAluno").addEventListener("click", () => {
+    const c = $("#cardProfAluno"); c.classList.toggle("hide");
+    if (!c.classList.contains("hide")) $("#inSenha").focus();
   });
+  async function addConvidado(){
+    const senha = $("#inSenha").value.replace(/\D/g, ""), nome = limpa($("#inNomeConv").value), msg = $("#msgConv");
+    if (!senha){ msg.className = "warn"; msg.textContent = "Digite a senha que aparece na tela do professor."; $("#inSenha").focus(); return; }
+    if (!nome){ msg.className = "warn"; msg.textContent = "Escreva o nome do aluno."; $("#inNomeConv").focus(); return; }
+    const btn = $("#btnAddConv"); btn.disabled = true; msg.className = "muted"; msg.textContent = "Adicionando...";
+    try{
+      await conectar();
+      await espera(push(ref(db, `turmas/${codigoAluno}/convidados`), { nome, pin: senha }), 12000, "convidado");
+      convAdicionados.push(nome);
+      const box = $("#listaConv"); box.textContent = ""; convAdicionados.forEach(n => box.appendChild(chip(n, "")));
+      $("#inNomeConv").value = ""; $("#inNomeConv").focus();
+      msg.className = "ok"; msg.textContent = nome + " foi adicionado. Pode colocar o próximo.";
+    }catch(e){
+      msg.className = "warn";
+      msg.textContent = String(e.code || e.message).toUpperCase().includes("PERMISSION")
+        ? "Senha incorreta ou turma encerrada. Confira a senha na tela do professor." : msgErro(e);
+    }
+    btn.disabled = false;
+  }
+  $("#btnAddConv").addEventListener("click", addConvidado);
+  $("#inNomeConv").addEventListener("keydown", e => { if (e.key === "Enter") addConvidado(); });
 }
 
 /* ====================== PROFESSOR ====================== */
@@ -533,7 +597,13 @@ function qrSvg(texto){
   const t = n + m * 2;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${t} ${t}" shape-rendering="crispEdges" role="img" aria-label="QR code da turma"><rect width="${t}" height="${t}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
 }
+function mostraPin(){
+  $("#pinProf").textContent = state.pin ? (state.pinVisivel ? state.pin : "•".repeat(state.pin.length)) : "indisponível";
+  $("#btnPin").textContent = state.pinVisivel ? "Esconder" : "Mostrar";
+  $("#btnPin").disabled = !state.pin;
+}
 function mostraQR(){
+  state.pinVisivel = false; mostraPin();
   const url = urlTurma();
   $("#blocoQR").classList.remove("hide");
   $("#linkTurma").textContent = url;
@@ -550,6 +620,12 @@ async function assumeTurma(){
     try{
       await set(ref(db, `turmas/${state.codigo}/dono`), uid);
       store.set("roleta.codigo", state.codigo);
+      try{
+        const rp = ref(db, `turmas/${state.codigo}/pin`);
+        let p = (await espera(get(rp), 12000, "pin")).val();
+        if (!p){ p = novoPin(); await set(rp, p); }
+        state.pin = String(p);
+      }catch(e){ console.error(e); state.pin = ""; }
       return;
     }catch(e){
       if (String(e.code || e.message).toUpperCase().includes("PERMISSION")){ state.codigo = ""; continue; }
@@ -565,12 +641,16 @@ function aoErroRede(err){
 function assina(){
   desassina();
   const base = `turmas/${state.codigo}`;
-  state.unsubs.push(onValue(ref(db, base + "/alunos"), snap => {
-    const v = snap.val() || {};
-    state.remote = Object.entries(v).map(([id, nome]) => ({ id, nome: limpa(nome) })).filter(x => x.nome);
+  const junta = () => {
+    state.remote = [
+      ...Object.entries(state.alunosDb).map(([id, nome]) => ({ id, nome: limpa(nome), no: "alunos" })),
+      ...Object.entries(state.convDb).map(([id, v]) => ({ id, nome: limpa(v && v.nome), no: "convidados" }))
+    ].filter(x => x.nome);
     $("#avisoRede").classList.add("hide");
     atualizaUI();
-  }, aoErroRede));
+  };
+  state.unsubs.push(onValue(ref(db, base + "/alunos"), snap => { state.alunosDb = snap.val() || {}; junta(); }, aoErroRede));
+  state.unsubs.push(onValue(ref(db, base + "/convidados"), snap => { state.convDb = snap.val() || {}; junta(); }, aoErroRede));
   state.unsubs.push(onValue(ref(db, base + "/envios"), s => { state.envios = s.val() || {}; renderEnvios(); }, aoErroRede));
   state.unsubs.push(onValue(ref(db, base + "/imagens"), s => { state.imagens = s.val() || {}; renderEnvios(); }, aoErroRede));
   state.unsubs.push(...assinaMural(state.codigo, itens => { state.muralItens = itens; renderEnvios(); }, aoErroRede));
@@ -841,7 +921,7 @@ function atualizaUI(){
   }
   const fora = new Set(state.drawn.map(n => n.toLowerCase()));
   state.remote.forEach(r => nomes.appendChild(chip(r.nome, fora.has(r.nome.toLowerCase()) ? "done" : "",
-    async () => { try{ await remove(ref(db, `turmas/${state.codigo}/alunos/${r.id}`)); }catch(e){} }, "Remover " + r.nome)));
+    async () => { try{ await remove(ref(db, `turmas/${state.codigo}/${r.no}/${r.id}`)); }catch(e){} }, "Remover " + r.nome)));
   state.manual.forEach((n, i) => nomes.appendChild(chip(n, fora.has(n.toLowerCase()) ? "done" : "",
     () => { state.manual.splice(i, 1); store.set("roleta.manual", state.manual); atualizaUI(); }, "Remover " + n)));
 
@@ -870,14 +950,14 @@ function ligaEventosProf(){
   });
   $("#btnLimparTudo").addEventListener("click", async () => {
     if (!confirm("Apagar todos os nomes que os alunos enviaram?")) return;
-    try{ if (db) await remove(ref(db, `turmas/${state.codigo}/alunos`)); }catch(e){}
+    try{ if (db) await limpaTurma(state.codigo, ["alunos", "convidados"]); }catch(e){}
     state.drawn = []; store.set("roleta.drawn", state.drawn); $("#resultado").textContent = ""; atualizaUI();
   });
   $("#btnNovaTurma").addEventListener("click", async () => {
     if (!confirm("Criar uma nova turma? O QR atual deixa de funcionar e a lista, os envios e o mural começam vazios.")) return;
-    try{ if (db) await limpaTurma(state.codigo, ["alunos", "envios", "imagens", "mural", "muralImg"]); }catch(e){}
+    try{ if (db) await limpaTurma(state.codigo, ["alunos", "convidados", "pin", "envios", "imagens", "mural", "muralImg"]); }catch(e){}
     desassina();
-    state.codigo = ""; state.remote = []; state.drawn = []; state.envios = {}; state.imagens = {}; state.muralItens = [];
+    state.codigo = ""; state.pin = ""; state.alunosDb = {}; state.convDb = {}; state.remote = []; state.drawn = []; state.envios = {}; state.imagens = {}; state.muralItens = [];
     store.set("roleta.drawn", []); store.del("roleta.codigo");
     $("#resultado").textContent = ""; atualizaUI(); iniciaProf();
   });
@@ -891,6 +971,7 @@ function ligaEventosProf(){
   $("#btnFecharMural").addEventListener("click", () => $("#dlgMural").close());
   $("#btnBaixar").addEventListener("click", baixarMural);
   $("#btnBaixar2").addEventListener("click", baixarMural);
+  $("#btnPin").addEventListener("click", () => { state.pinVisivel = !state.pinVisivel; mostraPin(); });
   $("#btnCopiar").addEventListener("click", async () => {
     try{ await navigator.clipboard.writeText(urlTurma()); $("#btnCopiar").textContent = "Link copiado"; }
     catch(e){ $("#btnCopiar").textContent = "Copie o link acima"; }
