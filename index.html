@@ -95,6 +95,7 @@ dialog::backdrop{background:rgba(10,20,40,.7)}
 .qrgrande{background:#fff;padding:10px;border-radius:10px;width:min(78vmin,560px);height:min(78vmin,560px);margin:0 auto 12px}
 .qrgrande svg{width:100%;height:100%;display:block}
 .sec{margin-top:20px}
+select{width:100%;font:inherit;font-size:1.2rem;color:var(--ink);background:var(--bg);border:3px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0 4px}
 .pin{font-family:Fredoka,sans-serif;font-size:1.7rem;letter-spacing:.18em}
 .aluno-larg{max-width:720px;margin:0 auto}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;align-items:start}
@@ -164,6 +165,10 @@ dialog.largo{width:min(1000px,94vw);max-height:92vh}
     <div class="card sec">
       <h2>Compartilhe o seu prompt</h2>
       <p class="muted">Conte o que você pediu para a IA. O professor lê antes e só depois o seu envio aparece no mural da turma.</p>
+      <div id="blocoAutor" class="hide" style="margin-bottom:12px">
+        <label class="lbl" for="selAutor">Enviando em nome de</label>
+        <select id="selAutor"></select>
+      </div>
       <label class="lbl" for="inPrompt">Prompt que você usou</label>
       <textarea id="inPrompt" class="alta" maxlength="1500"></textarea>
       <label class="lbl" for="inComentario" style="display:block;margin-top:10px">O que a IA respondeu ou o que você aprendeu (opcional)</label>
@@ -535,7 +540,7 @@ function iniciaAluno(){
   });
   $("#btnEnviarPrompt").addEventListener("click", async () => {
     const prompt = limpaTexto($("#inPrompt").value, 1500), comentario = limpaTexto($("#inComentario").value, 600);
-    const nome = store.get(chave, "");
+    const nome = autorAtual();
     if (!prompt){ msgP.className = "warn"; msgP.textContent = "Escreva o prompt que você usou."; return; }
     if (!nome){ msgP.className = "warn"; msgP.textContent = "Entre na roleta primeiro."; return; }
     const btn = $("#btnEnviarPrompt"); btn.disabled = true; msgP.className = "muted"; msgP.textContent = "Enviando...";
@@ -557,7 +562,21 @@ function iniciaAluno(){
   $("#inNome").addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
 
   /* professor adicionando alunos pelo link (precisa da senha mostrada na tela do professor) */
-  const convAdicionados = [];
+  const chaveConv = "roleta.conv." + codigoAluno;
+  const convAdicionados = (store.get(chaveConv, []) || []).filter(n => typeof n === "string" && n);
+  const autorAtual = () => convAdicionados.length ? ($("#selAutor").value || "") : store.get(chave, "");
+  function atualizaConv(selecionar){
+    const box = $("#listaConv"); box.textContent = "";
+    convAdicionados.forEach(n => box.appendChild(chip(n, "")));
+    const sel = $("#selAutor"), atual = selecionar || sel.value, proprio = store.get(chave, "");
+    sel.textContent = "";
+    [...new Set([...(proprio ? [proprio] : []), ...convAdicionados])].forEach(n => {
+      const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o);
+    });
+    if ([...sel.options].some(o => o.value === atual)) sel.value = atual;
+    $("#blocoAutor").classList.toggle("hide", !convAdicionados.length);
+  }
+  if (convAdicionados.length){ atualizaConv(); abreCompartilhar(); }
   $("#btnProfAluno").addEventListener("click", () => {
     const c = $("#cardProfAluno"); c.classList.toggle("hide");
     if (!c.classList.contains("hide")) $("#inSenha").focus();
@@ -570,10 +589,11 @@ function iniciaAluno(){
     try{
       await conectar();
       await espera(push(ref(db, `turmas/${codigoAluno}/convidados`), { nome, pin: senha }), 12000, "convidado");
-      convAdicionados.push(nome);
-      const box = $("#listaConv"); box.textContent = ""; convAdicionados.forEach(n => box.appendChild(chip(n, "")));
+      if (!convAdicionados.includes(nome)) convAdicionados.push(nome);
+      store.set(chaveConv, convAdicionados);
+      atualizaConv(nome); abreCompartilhar();
       $("#inNomeConv").value = ""; $("#inNomeConv").focus();
-      msg.className = "ok"; msg.textContent = nome + " foi adicionado. Pode colocar o próximo.";
+      msg.className = "ok"; msg.textContent = nome + " foi adicionado. Para enviar o prompt dele(a), use o campo \"Enviando em nome de\" mais abaixo, ou adicione o próximo.";
     }catch(e){
       msg.className = "warn";
       msg.textContent = String(e.code || e.message).toUpperCase().includes("PERMISSION")
