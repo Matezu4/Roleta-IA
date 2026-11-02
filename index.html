@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roleta da turma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FBFCFE; --grid:#EAF1FB; --ink:#14284B; --muted:#4A5E80; --card:#FFFFFF;
+  --line:#14284B; --accent:#FFC93C; --accent-ink:#14284B; --ok:#1E8E5A; --warn:#B3261E;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0F1B33; --grid:#16264A; --ink:#EAF1FB; --muted:#A9B8D6; --card:#14284B;
+    --line:#EAF1FB; --accent:#FFC93C; --accent-ink:#14284B; --ok:#6FD6A3; --warn:#FF8A80;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:"Atkinson Hyperlegible",system-ui,sans-serif; color:var(--ink); background:var(--bg);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:28px 28px; min-height:100vh;
+  padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));
+}
+main{max-width:1000px;margin:0 auto}
+h1,h2{font-family:Fredoka,sans-serif;margin:0 0 8px;line-height:1.15}
+h1{font-size:clamp(1.8rem,5vw,2.6rem)}
+h2{font-size:1.25rem}
+p{line-height:1.5;margin:0 0 12px;max-width:62ch}
+.muted{color:var(--muted)}
+.card{background:var(--card);border:3px solid var(--line);border-radius:14px;padding:16px;box-shadow:5px 5px 0 var(--line)}
+.btn{
+  font-family:Fredoka,sans-serif;font-size:1.05rem;font-weight:700;color:var(--accent-ink);background:var(--accent);
+  border:3px solid var(--line);border-radius:12px;padding:10px 16px;cursor:pointer;box-shadow:3px 3px 0 var(--line);
+}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--line)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.big{font-size:1.4rem;padding:14px 28px}
+a.btn{display:inline-block;text-decoration:none}
+:focus-visible{outline:4px solid #3D7BFF;outline-offset:2px}
+.hide{display:none!important}
+.warn{color:var(--warn);font-weight:700}
+.ok{color:var(--ok);font-weight:700}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.status{font-weight:700}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.center{justify-content:center}
+
+/* aluno */
+.narrow{max-width:520px;margin:0 auto}
+input[type=text]{
+  width:100%;font:inherit;font-size:1.3rem;color:var(--ink);background:var(--bg);
+  border:3px solid var(--line);border-radius:12px;padding:12px 14px;margin:6px 0 14px;
+}
+label.lbl{font-weight:700}
+
+/* professor */
+.grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:780px){.grid{grid-template-columns:1fr}}
+.wheelbox{position:relative;width:100%;max-width:520px;margin:0 auto}
+canvas{width:100%;height:auto;aspect-ratio:1/1;display:block}
+.pointer{
+  position:absolute;left:50%;top:-6px;width:0;height:0;transform:translateX(-50%);
+  border-left:16px solid transparent;border-right:16px solid transparent;border-top:30px solid var(--ink);
+  filter:drop-shadow(0 2px 0 var(--accent)); transform-origin:50% 0;
+}
+#confete{position:fixed;inset:0;width:100vw;height:100vh;aspect-ratio:auto;pointer-events:none;z-index:50}
+#resultado{
+  font-family:Fredoka,sans-serif;font-weight:700;font-size:clamp(1.8rem,6vw,3rem);text-align:center;
+  min-height:1.3em;margin:14px 0 10px;overflow-wrap:anywhere;
+}
+label.check{display:flex;gap:8px;align-items:center;font-weight:700;margin:8px 0}
+label.check input{width:20px;height:20px;accent-color:var(--ink)}
+textarea{
+  width:100%;min-height:80px;font:inherit;color:var(--ink);background:var(--bg);
+  border:3px solid var(--line);border-radius:10px;padding:10px;resize:vertical;
+}
+.panel>*+*{margin-top:16px}
+.qrbox{background:#fff;border:3px solid var(--line);border-radius:10px;padding:6px;width:190px;height:190px;flex:none;cursor:zoom-in}
+.qrbox svg{width:100%;height:100%;display:block}
+.linkurl{font-size:.9rem;overflow-wrap:anywhere;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;max-height:170px;overflow:auto}
+.chip{border:2px solid var(--line);border-radius:999px;padding:3px 6px 3px 10px;font-size:.95rem;background:var(--bg);display:inline-flex;gap:6px;align-items:center}
+.chip.done span{opacity:.55;text-decoration:line-through}
+.chip button{border:0;background:transparent;color:var(--ink);font-size:1.1rem;line-height:1;cursor:pointer;padding:0 4px;border-radius:50%}
+dialog{border:3px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);padding:18px;max-width:92vw}
+dialog::backdrop{background:rgba(10,20,40,.7)}
+.qrgrande{background:#fff;padding:10px;border-radius:10px;width:min(78vmin,560px);height:min(78vmin,560px);margin:0 auto 12px}
+.qrgrande svg{width:100%;height:100%;display:block}
+.sec{margin-top:20px}
+.aluno-larg{max-width:720px;margin:0 auto}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;align-items:start}
+.lista-envios{display:grid;gap:12px}
+.envio{background:var(--card);border:3px solid var(--line);border-radius:12px;padding:12px}
+.envio h3{font-family:Fredoka,sans-serif;font-size:1.1rem;margin:0 0 6px}
+.envio .prompt{white-space:pre-wrap;overflow-wrap:anywhere;margin:0 0 8px;max-width:none}
+.envio .com{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted);margin:0 0 8px;max-width:none}
+.envio img{max-width:100%;max-height:420px;display:block;border:2px solid var(--line);border-radius:8px;margin:0 0 8px;background:#fff}
+.envio .acoes{display:flex;gap:8px;flex-wrap:wrap}
+.btn.peq{font-size:.95rem;padding:6px 12px}
+textarea.alta{min-height:130px}
+.preview{max-width:100%;max-height:220px;border:2px solid var(--line);border-radius:8px;margin-top:8px;display:block;background:#fff}
+dialog.largo{width:min(1000px,94vw);max-height:92vh}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+
+<!-- ===== INÍCIO (quem abre o site sem QR) ===== -->
+<section id="viewInicio" class="hide narrow">
+  <h1>Roleta da turma</h1>
+  <p>Para entrar na roleta, aponte a câmera do celular para o QR code que o professor mostrar na tela.</p>
+  <div class="row">
+    <a class="btn hide" id="linkCartilhaInicio" target="_blank" rel="noopener">Abrir a cartilha</a>
+    <button class="btn ghost" id="btnSouProf">Sou o professor</button>
+  </div>
+</section>
+
+<!-- ===== PARTE DO ALUNO ===== -->
+<section id="viewAluno" class="hide aluno-larg">
+  <h1>Entre na roleta</h1>
+  <div class="card narrow" id="formAluno">
+    <label class="lbl" for="inNome">Seu primeiro nome (ou apelido)</label>
+    <input type="text" id="inNome" maxlength="30" autocomplete="off" autocapitalize="words" enterkeyhint="send">
+    <button class="btn big" id="btnEnviar">Entrar na roleta</button>
+    <p id="msgAluno" class="muted" style="margin-top:12px" aria-live="polite"></p>
+    <p class="muted" style="margin:8px 0 0">Não coloque sobrenome, escola ou outros dados pessoais.</p>
+  </div>
+  <div class="card narrow hide" id="feitoAluno">
+    <h2 id="feitoTitulo">Pronto!</h2>
+    <p>Seu nome já está na roleta. Agora é só esperar o sorteio.</p>
+    <button class="btn ghost" id="btnOutroNome">Escrever outro nome</button>
+  </div>
+
+  <div class="card narrow sec hide" id="cardCartilha">
+    <h2>Estude com a cartilha</h2>
+    <p class="muted">Prompts prontos para entender, treinar e conferir o que você aprendeu.</p>
+    <a class="btn" id="linkCartilhaAluno" target="_blank" rel="noopener">Abrir a cartilha</a>
+  </div>
+
+  <div id="blocoCompartilhar" class="hide">
+    <div class="card sec">
+      <h2>Compartilhe o seu prompt</h2>
+      <p class="muted">Conte o que você pediu para a IA. O professor lê antes e só depois o seu envio aparece no mural da turma.</p>
+      <label class="lbl" for="inPrompt">Prompt que você usou</label>
+      <textarea id="inPrompt" class="alta" maxlength="1500"></textarea>
+      <label class="lbl" for="inComentario" style="display:block;margin-top:10px">O que a IA respondeu ou o que você aprendeu (opcional)</label>
+      <textarea id="inComentario" maxlength="600"></textarea>
+      <label class="lbl" for="inFoto" style="display:block;margin-top:10px">Print da conversa (opcional)</label>
+      <input type="file" id="inFoto" accept="image/*">
+      <img id="prevFoto" class="preview hide" alt="Prévia da imagem escolhida">
+      <p class="muted" style="margin-top:8px">Antes de enviar, cubra rostos, nomes completos e dados pessoais no print.</p>
+      <div class="row">
+        <button class="btn" id="btnEnviarPrompt">Enviar para aprovação</button>
+        <button class="btn ghost hide" id="btnRemoverFoto" type="button">Tirar imagem</button>
+      </div>
+      <p id="msgPrompt" class="muted" aria-live="polite"></p>
+    </div>
+    <div class="sec">
+      <h2>Mural da turma</h2>
+      <p id="msgMural" class="warn" aria-live="polite"></p>
+      <div class="lista-envios" id="muralAluno"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PARTE DO PROFESSOR ===== -->
+<section id="viewProf" class="hide">
+  <div class="topbar">
+    <h1>Roleta da turma</h1>
+    <span id="contagem" class="status" aria-live="polite"></span>
+  </div>
+  <p id="avisoConfig" class="warn hide">O Firebase ainda não foi configurado. Siga o LEIA-ME e cole a configuração no topo do script. Enquanto isso, você pode adicionar nomes à mão.</p>
+  <p id="avisoRede" class="warn hide" aria-live="polite"></p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="wheelbox">
+        <div class="pointer" aria-hidden="true"></div>
+        <canvas id="roda" width="520" height="520" role="img" aria-label="Roleta com os nomes dos alunos"></canvas>
+      </div>
+      <div id="resultado" aria-live="assertive"></div>
+      <div class="row center"><button class="btn big" id="btnGirar">Girar</button></div>
+    </div>
+
+    <div class="card panel">
+      <div>
+        <h2>Materiais da aula</h2>
+        <div class="row">
+          <a class="btn ghost hide" id="linkCartilhaProf" target="_blank" rel="noopener">Abrir a cartilha</a>
+          <a class="btn ghost" href="qr.html" target="_blank" rel="noopener">QR codes dos formulários</a>
+        </div>
+      </div>
+
+      <div id="blocoQR" class="hide">
+        <h2>Alunos entram por aqui</h2>
+        <div class="row">
+          <div class="qrbox" id="qrPequeno" role="button" tabindex="0" aria-label="Ampliar o QR code"></div>
+          <div style="flex:1;min-width:150px">
+            <p class="muted" style="margin-bottom:8px">Aponte a câmera do celular. Toque no QR para ampliar.</p>
+            <div class="linkurl" id="linkTurma"></div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn ghost" id="btnCopiar">Copiar link</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2>Nomes da turma</h2>
+        <div class="chips" id="listaNomes"></div>
+        <div class="row" style="margin-top:10px">
+          <button class="btn ghost" id="btnLimparTudo">Limpar a lista</button>
+          <button class="btn ghost" id="btnNovaTurma">Nova turma (novo QR)</button>
+        </div>
+      </div>
+
+      <div>
+        <h2>Adicionar à mão</h2>
+        <textarea id="txtManual" placeholder="Um nome por linha" aria-label="Nomes para adicionar, um por linha"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn ghost" id="btnAdd">Adicionar</button>
+          <button class="btn ghost" id="btnLimparManual">Apagar os adicionados à mão</button>
+        </div>
+      </div>
+
+      <div>
+        <h2>Sorteio</h2>
+        <label class="check"><input type="checkbox" id="chkTirar" checked> Tirar da roleta quem já saiu</label>
+        <label class="check"><input type="checkbox" id="chkSom" checked> Som e fanfarra</label>
+        <label class="check"><input type="checkbox" id="chkOcioso" checked> Girar devagar enquanto espera</label>
+        <button class="btn ghost" id="btnDevolver">Devolver todos à roleta</button>
+        <p class="muted" style="margin:10px 0 6px">Já sorteados:</p>
+        <div class="chips" id="listaSorteados"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>Envios dos alunos</h2>
+    <div class="cols">
+      <div>
+        <h2 id="tPend" style="font-size:1.1rem">Aguardando aprovação (0)</h2>
+        <div class="lista-envios" id="listaPend"></div>
+      </div>
+      <div>
+        <div class="row" style="justify-content:space-between">
+          <h2 id="tMural" style="font-size:1.1rem;margin:0">No mural (0)</h2>
+          <div class="row">
+            <button class="btn ghost peq" id="btnProjetar">Projetar mural</button>
+            <button class="btn ghost peq" id="btnBaixar">Baixar mural</button>
+          </div>
+        </div>
+        <div class="lista-envios" id="listaMural" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn ghost" id="btnLimparEnvios">Apagar envios e mural</button></div>
+  </div>
+</section>
+
+<canvas id="confete" aria-hidden="true"></canvas>
+
+<dialog id="dlgQR" aria-label="QR code da turma">
+  <div class="qrgrande" id="qrGrande"></div>
+  <div class="row center"><button class="btn" id="btnFecharQR">Fechar</button></div>
+</dialog>
+
+<dialog id="dlgMural" class="largo" aria-label="Mural da turma">
+  <div class="lista-envios" id="muralGrande"></div>
+  <div class="row center" style="margin-top:12px"><button class="btn ghost" id="btnBaixar2">Baixar mural</button><button class="btn" id="btnFecharMural">Fechar</button></div>
+</dialog>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getDatabase, ref, set, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+/* ====== CONFIGURAÇÃO: cole aqui os dados do seu projeto Firebase (veja o LEIA-ME) ====== */
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  appId: ""
+};
+/* ======================================================================================== */
+
+/* Endereço da cartilha. "../" funciona se a roleta estiver numa pasta dentro do mesmo repositório da cartilha.
+   Se a cartilha estiver em outro endereço, cole o link completo, por exemplo "https://seu-usuario.github.io/cartilha/".
+   Deixe "" para esconder os botões da cartilha. */
+const CARTILHA_URL = "../";
+
+const $ = s => document.querySelector(s);
+const configurado = Boolean(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.databaseURL);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k); }catch(e){} }
+};
+const state = {
+  codigo: store.get("roleta.codigo", ""),
+  remote: [],                              // [{id, nome}]
+  manual: store.get("roleta.manual", []),
+  drawn:  store.get("roleta.drawn", []),
+  angle: 0, spinning: false, unsubs: [], envios: {}, imagens: {}, muralItens: []
+};
+const PALETA = ["#FFC93C", "#4F7BE8", "#FFFFFF", "#7FD1AE", "#FF8A6B"];
+const TEXTO  = ["#14284B", "#FFFFFF", "#14284B", "#14284B", "#14284B"];
+const reduzMov = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- Firebase ---------- */
+let auth = null, db = null;
+async function conectar(){
+  if (!configurado) throw new Error("sem-config");
+  if (!auth){
+    const app = initializeApp(FIREBASE_CONFIG);
+    auth = getAuth(app); db = getDatabase(app);
+  }
+  await auth.authStateReady();
+  if (!auth.currentUser) await signInAnonymously(auth);
+  return auth.currentUser.uid;
+}
+function msgErro(e){
+  const c = (e && (e.code || e.message)) || "";
+  if (c.includes("sem-config")) return "O Firebase ainda não foi configurado.";
+  if (c.includes("operation-not-allowed")) return "O login anônimo não está ativado no Firebase. Veja o LEIA-ME.";
+  if (c.includes("PERMISSION_DENIED") || c.includes("permission")) return "Sem permissão. Confira as regras do banco ou peça um novo QR ao professor.";
+  if (c.includes("network") || c.includes("Failed to fetch")) return "Sem conexão com a internet.";
+  return "Algo deu errado. Tente de novo.";
+}
+const ALFABETO = "abcdefghjkmnpqrstuvwxyz23456789";
+function novoCodigo(){
+  const b = new Uint8Array(6); crypto.getRandomValues(b);
+  return Array.from(b, x => ALFABETO[x % ALFABETO.length]).join("");
+}
+
+/* ---------- rotas ---------- */
+const params = new URLSearchParams(location.search);
+const codigoAluno = (params.get("t") || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+function rota(){
+  const modo = codigoAluno ? "aluno" : (location.hash === "#professor" ? "prof" : "inicio");
+  $("#viewInicio").classList.toggle("hide", modo !== "inicio");
+  $("#viewAluno").classList.toggle("hide", modo !== "aluno");
+  $("#viewProf").classList.toggle("hide", modo !== "prof");
+  if (modo === "aluno") iniciaAluno();
+  if (modo === "prof") iniciaProf();
+}
+window.addEventListener("hashchange", rota);
+$("#btnSouProf").addEventListener("click", () => { location.hash = "#professor"; });
+
+/* ---------- limpeza de nomes ---------- */
+function limpa(n){ return String(n || "").replace(/[\u0000-\u001F<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 30); }
+function todos(){
+  const vistos = new Set(), saida = [];
+  [...state.remote.map(r => r.nome), ...state.manual].forEach(n => {
+    const c = limpa(n), k = c.toLowerCase();
+    if (c && !vistos.has(k)){ vistos.add(k); saida.push(c); }
+  });
+  return saida;
+}
+function naRoleta(){
+  if (!$("#chkTirar").checked) return todos();
+  const fora = new Set(state.drawn.map(n => n.toLowerCase()));
+  return todos().filter(n => !fora.has(n.toLowerCase()));
+}
+
+/* ---------- envios (prompts e prints) ---------- */
+const IMG_PREFIXO = "data:image/jpeg;base64,";
+const imgOk = s => typeof s === "string" && s.startsWith(IMG_PREFIXO) && s.length < 200000;
+function limpaTexto(t, max){
+  return String(t || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, max);
+}
+function cartao(item, acoes){
+  const el = document.createElement("article"); el.className = "envio";
+  const h3 = document.createElement("h3"); h3.textContent = item.nome || "Aluno"; el.appendChild(h3);
+  const p = document.createElement("p"); p.className = "prompt"; p.textContent = item.prompt || ""; el.appendChild(p);
+  if (item.comentario){ const c = document.createElement("p"); c.className = "com"; c.textContent = item.comentario; el.appendChild(c); }
+  if (imgOk(item.img)){ const i = document.createElement("img"); i.src = item.img; i.alt = "Print enviado por " + (item.nome || "aluno"); el.appendChild(i); }
+  if (acoes && acoes.length){
+    const d = document.createElement("div"); d.className = "acoes";
+    acoes.forEach(a => {
+      const b = document.createElement("button"); b.type = "button";
+      b.className = "btn peq" + (a.ghost ? " ghost" : ""); b.textContent = a.texto; b.addEventListener("click", a.fn); d.appendChild(b);
+    });
+    el.appendChild(d);
+  }
+  return el;
+}
+function preenche(container, itens, vazio, acoesDe){
+  container.textContent = "";
+  if (!itens.length){ const s = document.createElement("p"); s.className = "muted"; s.textContent = vazio; container.appendChild(s); return; }
+  itens.forEach(it => container.appendChild(cartao(it, acoesDe ? acoesDe(it) : null)));
+}
+function assinaMural(codigo, aoMudar, aoErro){
+  const d = { mural: {}, img: {} };
+  const emite = () => aoMudar(Object.entries(d.mural)
+    .map(([id, v]) => ({ id, ...v, img: d.img[id] || "" }))
+    .sort((a, b) => (b.criado || 0) - (a.criado || 0)));
+  const u1 = onValue(ref(db, `turmas/${codigo}/mural`), s => { d.mural = s.val() || {}; emite(); }, aoErro);
+  const u2 = onValue(ref(db, `turmas/${codigo}/muralImg`), s => { d.img = s.val() || {}; emite(); }, aoErro);
+  return [u1, u2];
+}
+async function comprimir(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((ok, err) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => err(new Error("imagem")); i.src = url; });
+    const maior = Math.max(img.naturalWidth, img.naturalHeight);
+    for (const [lado, q] of [[900, 0.72], [800, 0.6], [640, 0.55], [520, 0.5]]){
+      const esc = Math.min(1, lado / maior);
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.naturalWidth * esc)); c.height = Math.max(1, Math.round(img.naturalHeight * esc));
+      const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+      ctx.drawImage(img, 0, 0, c.width, c.height);
+      const d = c.toDataURL("image/jpeg", q);
+      if (d.length <= 150000) return d;
+    }
+    throw new Error("imagem-grande");
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/* ====================== ALUNO ======================
+let alunoIniciado = false;
+function iniciaAluno(){
+  if (alunoIniciado) return; alunoIniciado = true;
+  const chave = "roleta.enviado." + codigoAluno;
+  let fotoData = "", muralOk = false;
+  const jaEnviado = store.get(chave, "");
+  async function abreCompartilhar(){
+    $("#blocoCompartilhar").classList.remove("hide");
+    if (muralOk) return; muralOk = true;
+    try{
+      await conectar();
+      assinaMural(codigoAluno,
+        itens => { $("#msgMural").textContent = ""; preenche($("#muralAluno"), itens, "Quando o professor aprovar, os envios aparecem aqui.", null); },
+        () => { $("#msgMural").textContent = "Não consegui carregar o mural."; });
+    }catch(e){ $("#msgMural").textContent = msgErro(e); muralOk = false; }
+  }
+  const mostraFeito = nome => {
+    $("#formAluno").classList.add("hide"); $("#feitoAluno").classList.remove("hide");
+    $("#feitoTitulo").textContent = "Pronto, " + nome + "!";
+    abreCompartilhar();
+  };
+  if (jaEnviado) mostraFeito(jaEnviado);
+
+  async function enviar(){
+    const nome = limpa($("#inNome").value);
+    const msg = $("#msgAluno");
+    if (!nome){ msg.className = "warn"; msg.textContent = "Escreva o seu nome para entrar."; return; }
+    $("#btnEnviar").disabled = true; msg.className = "muted"; msg.textContent = "Enviando...";
+    try{
+      await conectar();
+      await push(ref(db, `turmas/${codigoAluno}/alunos`), nome);
+      store.set(chave, nome); msg.textContent = ""; mostraFeito(nome);
+    }catch(e){
+      msg.className = "warn";
+      msg.textContent = (e.code || "").includes("PERMISSION") || String(e.message).includes("PERMISSION")
+        ? "Esta turma não existe ou foi encerrada. Peça um novo QR ao professor." : msgErro(e);
+    }
+    $("#btnEnviar").disabled = false;
+  }
+  const msgP = $("#msgPrompt");
+  $("#inFoto").addEventListener("change", async e => {
+    const f = e.target.files && e.target.files[0];
+    fotoData = ""; $("#prevFoto").classList.add("hide"); $("#btnRemoverFoto").classList.add("hide");
+    if (!f) return;
+    msgP.className = "muted"; msgP.textContent = "Preparando a imagem...";
+    try{
+      fotoData = await comprimir(f);
+      $("#prevFoto").src = fotoData; $("#prevFoto").classList.remove("hide"); $("#btnRemoverFoto").classList.remove("hide");
+      msgP.textContent = "";
+    }catch(err){
+      msgP.className = "warn"; msgP.textContent = "Não consegui usar essa imagem. Tente um print de tela."; e.target.value = "";
+    }
+  });
+  $("#btnRemoverFoto").addEventListener("click", () => {
+    fotoData = ""; $("#inFoto").value = ""; $("#prevFoto").classList.add("hide"); $("#btnRemoverFoto").classList.add("hide");
+  });
+  $("#btnEnviarPrompt").addEventListener("click", async () => {
+    const prompt = limpaTexto($("#inPrompt").value, 1500), comentario = limpaTexto($("#inComentario").value, 600);
+    const nome = store.get(chave, "");
+    if (!prompt){ msgP.className = "warn"; msgP.textContent = "Escreva o prompt que você usou."; return; }
+    if (!nome){ msgP.className = "warn"; msgP.textContent = "Entre na roleta primeiro."; return; }
+    const btn = $("#btnEnviarPrompt"); btn.disabled = true; msgP.className = "muted"; msgP.textContent = "Enviando...";
+    try{
+      await conectar();
+      const r = push(ref(db, `turmas/${codigoAluno}/envios`));
+      const dados = { uid: auth.currentUser.uid, nome, prompt, criado: Date.now() };
+      if (comentario) dados.comentario = comentario;
+      await set(r, dados);
+      if (fotoData) await set(ref(db, `turmas/${codigoAluno}/imagens/${r.key}`), fotoData);
+      $("#inPrompt").value = ""; $("#inComentario").value = ""; $("#btnRemoverFoto").click();
+      msgP.className = "ok"; msgP.textContent = "Enviado! O professor vai ver e aprovar.";
+    }catch(e){
+      msgP.className = "warn"; msgP.textContent = msgErro(e);
+    }
+    btn.disabled = false;
+  });
+  $("#btnEnviar").addEventListener("click", enviar);
+  $("#inNome").addEventListener("keydown", e => { if (e.key === "Enter") enviar(); });
+  $("#btnOutroNome").addEventListener("click", () => {
+    store.del(chave); $("#inNome").value = "";
+    $("#feitoAluno").classList.add("hide"); $("#formAluno").classList.remove("hide"); $("#inNome").focus();
+  });
+}
+
+/* ====================== PROFESSOR ====================== */
+let profIniciado = false;
+function urlTurma(){ return location.origin + location.pathname + "?t=" + state.codigo; }
+
+function qrSvg(texto){
+  if (typeof qrcode !== "function") return null;
+  const qr = qrcode(0, "M"); qr.addData(texto); qr.make();
+  const n = qr.getModuleCount(), m = 3; let d = "";
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c+m} ${r+m}h1v1h-1z`;
+  const t = n + m * 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${t} ${t}" shape-rendering="crispEdges" role="img" aria-label="QR code da turma"><rect width="${t}" height="${t}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+function mostraQR(){
+  const url = urlTurma();
+  $("#blocoQR").classList.remove("hide");
+  $("#linkTurma").textContent = url;
+  const svg = qrSvg(url);
+  $("#qrPequeno").innerHTML = svg || "<p style='font-size:.85rem;color:#000'>Não consegui gerar o QR. Use o link.</p>";
+  $("#qrGrande").innerHTML = svg || "";
+}
+
+async function assumeTurma(){
+  // cria (ou reassume) a turma no banco; tenta outro código se o atual for de outra pessoa
+  const uid = await conectar();
+  for (let tent = 0; tent < 4; tent++){
+    if (!state.codigo) state.codigo = novoCodigo();
+    try{
+      await set(ref(db, `turmas/${state.codigo}/dono`), uid);
+      store.set("roleta.codigo", state.codigo);
+      return;
+    }catch(e){
+      if (String(e.code || e.message).toUpperCase().includes("PERMISSION")){ state.codigo = ""; continue; }
+      throw e;
+    }
+  }
+  throw new Error("permission");
+}
+function desassina(){ state.unsubs.forEach(u => { try{ u(); }catch(e){} }); state.unsubs = []; }
+function aoErroRede(err){
+  const a = $("#avisoRede"); a.textContent = msgErro(err); a.classList.remove("hide");
+}
+function assina(){
+  desassina();
+  const base = `turmas/${state.codigo}`;
+  state.unsubs.push(onValue(ref(db, base + "/alunos"), snap => {
+    const v = snap.val() || {};
+    state.remote = Object.entries(v).map(([id, nome]) => ({ id, nome: limpa(nome) })).filter(x => x.nome);
+    $("#avisoRede").classList.add("hide");
+    atualizaUI();
+  }, aoErroRede));
+  state.unsubs.push(onValue(ref(db, base + "/envios"), s => { state.envios = s.val() || {}; renderEnvios(); }, aoErroRede));
+  state.unsubs.push(onValue(ref(db, base + "/imagens"), s => { state.imagens = s.val() || {}; renderEnvios(); }, aoErroRede));
+  state.unsubs.push(...assinaMural(state.codigo, itens => { state.muralItens = itens; renderEnvios(); }, aoErroRede));
+}
+
+/* ---------- baixar o mural ---------- */
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function baixarMural(){
+  const itens = [...state.muralItens].sort((a, b) => (a.criado || 0) - (b.criado || 0));
+  if (!itens.length){ alert("O mural ainda está vazio."); return; }
+  const agora = new Date();
+  const dataBR = agora.toLocaleDateString("pt-BR");
+  const iso = agora.toISOString().slice(0, 10);
+  const corpo = itens.map((it, i) => {
+    const quando = it.criado ? new Date(it.criado).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+    return `<article>
+<h2>${i + 1}. ${esc(it.nome)} <small>${esc(quando)}</small></h2>
+<h3>Prompt</h3>
+<p class="txt">${esc(it.prompt)}</p>
+${it.comentario ? `<h3>Comentário</h3>\n<p class="txt">${esc(it.comentario)}</p>` : ""}
+${imgOk(it.img) ? `<h3>Print</h3>\n<img src="${it.img}" alt="Print enviado por ${esc(it.nome)}">` : ""}
+</article>`;
+  }).join("\n");
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mural de prompts - ${dataBR}</title>
+<style>
+body{font-family:system-ui,Arial,sans-serif;color:#14284B;max-width:820px;margin:0 auto;padding:24px;line-height:1.5}
+h1{margin:0 0 4px} .sub{color:#4A5E80;margin:0 0 24px}
+article{border:2px solid #14284B;border-radius:12px;padding:16px;margin:0 0 20px;break-inside:avoid}
+h2{margin:0 0 8px;font-size:1.2rem} h2 small{font-weight:400;color:#4A5E80;font-size:.8rem;margin-left:8px}
+h3{margin:12px 0 4px;font-size:.85rem;text-transform:uppercase;letter-spacing:.04em;color:#4A5E80}
+.txt{white-space:pre-wrap;overflow-wrap:anywhere;margin:0}
+img{max-width:100%;border:1px solid #14284B;border-radius:8px}
+</style></head><body>
+<h1>Mural de prompts da turma</h1>
+<p class="sub">Aula sobre uso de IA nos estudos de matemática. Gerado em ${dataBR}. ${itens.length} ${itens.length === 1 ? "envio aprovado" : "envios aprovados"}. Para salvar em PDF, use Imprimir no navegador.</p>
+${corpo}
+</body></html>`;
+  const url = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));
+  const a = document.createElement("a"); a.href = url; a.download = `mural-prompts-${iso}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+
+/* ---------- envios no painel do professor ---------- */
+function renderEnvios(){
+  const pend = Object.entries(state.envios)
+    .map(([id, v]) => ({ id, ...v, img: state.imagens[id] || "" }))
+    .sort((a, b) => (a.criado || 0) - (b.criado || 0));
+  $("#tPend").textContent = "Aguardando aprovação (" + pend.length + ")";
+  $("#tMural").textContent = "No mural (" + state.muralItens.length + ")";
+  preenche($("#listaPend"), pend, "Nenhum envio esperando.", it => [
+    { texto: "Aprovar", fn: () => aprovar(it) },
+    { texto: "Apagar", ghost: true, fn: () => apagarEnvio(it.id) }
+  ]);
+  preenche($("#listaMural"), state.muralItens, "Nada no mural ainda.", it => [
+    { texto: "Tirar do mural", ghost: true, fn: () => tirarDoMural(it.id) }
+  ]);
+  if ($("#dlgMural").open) preenche($("#muralGrande"), state.muralItens, "Nada no mural ainda.", null);
+}
+async function aprovar(it){
+  const base = `turmas/${state.codigo}`;
+  try{
+    await set(ref(db, `${base}/mural/${it.id}`), { nome: it.nome, prompt: it.prompt, comentario: it.comentario || "", criado: it.criado || Date.now() });
+    if (imgOk(it.img)) await set(ref(db, `${base}/muralImg/${it.id}`), it.img);
+    await Promise.all([remove(ref(db, `${base}/envios/${it.id}`)), remove(ref(db, `${base}/imagens/${it.id}`))]);
+  }catch(e){ aoErroRede(e); }
+}
+async function apagarEnvio(id){
+  const base = `turmas/${state.codigo}`;
+  try{ await Promise.all([remove(ref(db, `${base}/envios/${id}`)), remove(ref(db, `${base}/imagens/${id}`))]); }catch(e){ aoErroRede(e); }
+}
+async function tirarDoMural(id){
+  const base = `turmas/${state.codigo}`;
+  try{ await Promise.all([remove(ref(db, `${base}/mural/${id}`)), remove(ref(db, `${base}/muralImg/${id}`))]); }catch(e){ aoErroRede(e); }
+}
+async function limpaTurma(codigo, nos){
+  await Promise.allSettled(nos.map(n => remove(ref(db, `turmas/${codigo}/${n}`))));
+}
+async function iniciaProf(){
+  if (!profIniciado){
+    profIniciado = true;
+    if (!configurado){ $("#avisoConfig").classList.remove("hide"); }
+    ligaEventosProf();
+  }
+  atualizaUI();
+  if (!configurado || state.unsubs.length) return;
+  try{
+    await assumeTurma(); mostraQR(); assina();
+  }catch(e){
+    const a = $("#avisoRede"); a.textContent = msgErro(e); a.classList.remove("hide");
+  }
+}
+
+/* ---------- desenho da roleta ---------- */
+function desenha(){
+  const cv = $("#roda"), ctx = cv.getContext("2d");
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const lado = Math.round(cv.getBoundingClientRect().width || 520);
+  if (cv.width !== lado * dpr){ cv.width = lado * dpr; cv.height = lado * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, lado, lado);
+  const cx = lado / 2, cy = lado / 2, R = lado / 2 - 8;
+  const nomes = naRoleta(), n = nomes.length;
+
+  if (!n){
+    ctx.fillStyle = "#EAF1FB"; ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 4; ctx.strokeStyle = "#14284B"; ctx.stroke();
+    ctx.fillStyle = "#14284B"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "700 " + Math.round(lado / 16) + "px Fredoka, sans-serif";
+    ctx.fillText("Sem nomes na roleta", cx, cy, R * 1.6);
+    return;
+  }
+  const fatia = Math.PI * 2 / n;
+  for (let i = 0; i < n; i++){
+    let k = i % PALETA.length;
+    if (i === n - 1 && n > 1 && k === 0) k = 2;
+    const a0 = state.angle + i * fatia;
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, a0, a0 + fatia); ctx.closePath();
+    ctx.fillStyle = PALETA[k]; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = "#14284B"; ctx.stroke();
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(a0 + fatia / 2);
+    ctx.fillStyle = TEXTO[k]; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    const tam = Math.max(9, Math.min(lado / 18, fatia * R * 0.5));
+    ctx.font = "700 " + tam + "px 'Atkinson Hyperlegible', sans-serif";
+    ctx.fillText(nomes[i], R - 14, 0, R * 0.62);
+    ctx.restore();
+  }
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.lineWidth = 5; ctx.strokeStyle = "#14284B"; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, lado / 20, 0, Math.PI * 2); ctx.fillStyle = "#14284B"; ctx.fill();
+}
+
+/* ---------- efeitos: som, ponteiro, confete ---------- */
+let audioCtx = null;
+function acordaAudio(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  }catch(e){}
+}
+function som(freq, dur, tipo, vol, atraso){
+  if (!$("#chkSom").checked || !audioCtx) return;
+  try{
+    const t = audioCtx.currentTime + (atraso || 0);
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = tipo; o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t + dur + 0.02);
+  }catch(e){}
+}
+function tic(){
+  som(950, 0.05, "square", 0.035, 0);
+  if (reduzMov()) return;
+  $(".pointer").animate([
+    { transform: "translateX(-50%) rotate(0deg)" },
+    { transform: "translateX(-50%) rotate(-22deg)" },
+    { transform: "translateX(-50%) rotate(0deg)" }
+  ], { duration: 120 });
+}
+function fanfarra(){
+  [523, 659, 784, 1047].forEach((f, i) => som(f, 0.28, "triangle", 0.07, i * 0.13));
+}
+function confete(){
+  if (reduzMov()) return;
+  const cv = $("#confete"); cv.width = window.innerWidth; cv.height = window.innerHeight;
+  const ctx = cv.getContext("2d"), cores = PALETA.concat(["#14284B"]);
+  const ps = Array.from({ length: 150 }, () => ({
+    x: window.innerWidth / 2 + (Math.random() - 0.5) * 240, y: window.innerHeight * 0.45,
+    vx: (Math.random() - 0.5) * 15, vy: -Math.random() * 15 - 4, g: 0.35,
+    w: 6 + Math.random() * 6, h: 9 + Math.random() * 9,
+    r: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4, c: cores[Math.floor(Math.random() * cores.length)]
+  }));
+  const t0 = performance.now();
+  (function quadro(t){
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ps.forEach(p => {
+      p.vy += p.g; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+    });
+    if (t - t0 < 3000) requestAnimationFrame(quadro); else ctx.clearRect(0, 0, cv.width, cv.height);
+  })(t0);
+}
+function fatiaSob(n){
+  const TWO = Math.PI * 2;
+  return Math.floor((((-Math.PI / 2 - state.angle) % TWO) + TWO) % TWO / (TWO / n));
+}
+function giroOcioso(){
+  const parado = !$("#chkOcioso").checked || state.spinning || reduzMov() || document.hidden ||
+    $("#viewProf").classList.contains("hide") || performance.now() < (state.retoma || 0) || naRoleta().length < 2;
+  if (!parado){ state.angle += 0.0022; desenha(); }
+  requestAnimationFrame(giroOcioso);
+}
+
+/* ---------- girar ---------- */
+function girar(){
+  if (state.spinning) return;
+  const nomes = naRoleta(), n = nomes.length;
+  if (!n){ $("#resultado").textContent = "Sem nomes na roleta"; return; }
+  const vencedor = Math.floor(Math.random() * n);
+  const fatia = Math.PI * 2 / n, TWO = Math.PI * 2;
+  const folga = (Math.random() - 0.5) * 0.7 * fatia;
+  const alvo = -Math.PI / 2 - (vencedor + 0.5) * fatia + folga;
+  const falta = (((alvo - state.angle) % TWO) + TWO) % TWO;
+  const total = falta + TWO * (5 + Math.floor(Math.random() * 3));
+  const inicio = state.angle, dur = reduzMov() ? 0 : 4500;
+
+  state.spinning = true; $("#btnGirar").disabled = true; $("#resultado").textContent = "";
+  acordaAudio();
+  let ultima = fatiaSob(n);
+  const t0 = performance.now();
+  function quadro(t){
+    const p = dur ? Math.min(1, (t - t0) / dur) : 1;
+    state.angle = inicio + total * (1 - Math.pow(1 - p, 3));
+    const fs = fatiaSob(n);
+    if (fs !== ultima){ ultima = fs; if (p < 1) tic(); }
+    desenha();
+    if (p < 1) requestAnimationFrame(quadro); else terminou(nomes[vencedor]);
+  }
+  requestAnimationFrame(quadro);
+}
+function terminou(nome){
+  state.spinning = false; $("#btnGirar").disabled = false;
+  $("#resultado").textContent = nome;
+  state.retoma = performance.now() + 6000;
+  if (!reduzMov()) $("#resultado").animate([
+    { transform: "scale(0.5)", opacity: 0 }, { transform: "scale(1.18)", opacity: 1 }, { transform: "scale(1)", opacity: 1 }
+  ], { duration: 550, easing: "ease-out" });
+  fanfarra(); confete();
+  if ($("#chkTirar").checked){ state.drawn.push(nome); store.set("roleta.drawn", state.drawn); }
+  atualizaUI();
+}
+
+/* ---------- interface do professor ---------- */
+function chip(texto, classe, onRemover, rotulo){
+  const c = document.createElement("span"); c.className = "chip " + (classe || "");
+  const s = document.createElement("span"); s.textContent = texto; c.appendChild(s);
+  if (onRemover){
+    const b = document.createElement("button"); b.type = "button"; b.textContent = "×";
+    b.setAttribute("aria-label", rotulo); b.addEventListener("click", onRemover); c.appendChild(b);
+  }
+  return c;
+}
+function atualizaUI(){
+  const total = todos().length, ativos = naRoleta().length;
+  $("#contagem").textContent = total + (total === 1 ? " nome" : " nomes") + " · " + ativos + " na roleta";
+
+  const nomes = $("#listaNomes"); nomes.textContent = "";
+  if (!state.remote.length && !state.manual.length){
+    const s = document.createElement("span"); s.className = "muted";
+    s.textContent = "Ninguém entrou ainda."; nomes.appendChild(s);
+  }
+  const fora = new Set(state.drawn.map(n => n.toLowerCase()));
+  state.remote.forEach(r => nomes.appendChild(chip(r.nome, fora.has(r.nome.toLowerCase()) ? "done" : "",
+    async () => { try{ await remove(ref(db, `turmas/${state.codigo}/alunos/${r.id}`)); }catch(e){} }, "Remover " + r.nome)));
+  state.manual.forEach((n, i) => nomes.appendChild(chip(n, fora.has(n.toLowerCase()) ? "done" : "",
+    () => { state.manual.splice(i, 1); store.set("roleta.manual", state.manual); atualizaUI(); }, "Remover " + n)));
+
+  const box = $("#listaSorteados"); box.textContent = "";
+  if (!state.drawn.length){ const s = document.createElement("span"); s.className = "muted"; s.textContent = "Ninguém ainda."; box.appendChild(s); }
+  state.drawn.forEach(n => box.appendChild(chip(n, "done")));
+  if (!state.spinning) desenha();
+  renderEnvios();
+}
+
+function ligaEventosProf(){
+  $("#btnGirar").addEventListener("click", girar);
+  $("#chkTirar").addEventListener("change", atualizaUI);
+  $("#btnAdd").addEventListener("click", () => {
+    const novos = $("#txtManual").value.split("\n").map(limpa).filter(Boolean);
+    if (!novos.length) return;
+    state.manual = state.manual.concat(novos); store.set("roleta.manual", state.manual);
+    $("#txtManual").value = ""; atualizaUI();
+  });
+  $("#btnLimparManual").addEventListener("click", () => {
+    if (!state.manual.length || !confirm("Apagar todos os nomes adicionados à mão?")) return;
+    state.manual = []; store.set("roleta.manual", state.manual); atualizaUI();
+  });
+  $("#btnDevolver").addEventListener("click", () => {
+    state.drawn = []; store.set("roleta.drawn", state.drawn); $("#resultado").textContent = ""; atualizaUI();
+  });
+  $("#btnLimparTudo").addEventListener("click", async () => {
+    if (!confirm("Apagar todos os nomes que os alunos enviaram?")) return;
+    try{ if (db) await remove(ref(db, `turmas/${state.codigo}/alunos`)); }catch(e){}
+    state.drawn = []; store.set("roleta.drawn", state.drawn); $("#resultado").textContent = ""; atualizaUI();
+  });
+  $("#btnNovaTurma").addEventListener("click", async () => {
+    if (!confirm("Criar uma nova turma? O QR atual deixa de funcionar e a lista, os envios e o mural começam vazios.")) return;
+    try{ if (db) await limpaTurma(state.codigo, ["alunos", "envios", "imagens", "mural", "muralImg"]); }catch(e){}
+    desassina();
+    state.codigo = ""; state.remote = []; state.drawn = []; state.envios = {}; state.imagens = {}; state.muralItens = [];
+    store.set("roleta.drawn", []); store.del("roleta.codigo");
+    $("#resultado").textContent = ""; atualizaUI(); iniciaProf();
+  });
+  $("#btnLimparEnvios").addEventListener("click", async () => {
+    if (!confirm("Apagar todos os envios e o mural?")) return;
+    try{ if (db) await limpaTurma(state.codigo, ["envios", "imagens", "mural", "muralImg"]); }catch(e){}
+  });
+  $("#btnProjetar").addEventListener("click", () => {
+    preenche($("#muralGrande"), state.muralItens, "Nada no mural ainda.", null); $("#dlgMural").showModal();
+  });
+  $("#btnFecharMural").addEventListener("click", () => $("#dlgMural").close());
+  $("#btnBaixar").addEventListener("click", baixarMural);
+  $("#btnBaixar2").addEventListener("click", baixarMural);
+  $("#btnCopiar").addEventListener("click", async () => {
+    try{ await navigator.clipboard.writeText(urlTurma()); $("#btnCopiar").textContent = "Link copiado"; }
+    catch(e){ $("#btnCopiar").textContent = "Copie o link acima"; }
+    setTimeout(() => { $("#btnCopiar").textContent = "Copiar link"; }, 2000);
+  });
+  const abre = () => { if ($("#qrGrande").innerHTML) $("#dlgQR").showModal(); };
+  $("#qrPequeno").addEventListener("click", abre);
+  $("#qrPequeno").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); abre(); } });
+  $("#btnFecharQR").addEventListener("click", () => $("#dlgQR").close());
+  requestAnimationFrame(giroOcioso);
+  window.addEventListener("resize", () => { if (!state.spinning) desenha(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!state.spinning) desenha(); });
+}
+
+(function ligaCartilha(){
+  if (!CARTILHA_URL) return;
+  [["linkCartilhaInicio"], ["linkCartilhaAluno"], ["linkCartilhaProf"]].forEach(([id]) => {
+    const a = document.getElementById(id); if (!a) return;
+    a.href = CARTILHA_URL; a.classList.remove("hide");
+  });
+  $("#cardCartilha").classList.remove("hide");
+})();
+
+rota();
+</script>
+</body>
+</html>
