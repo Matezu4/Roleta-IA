@@ -611,19 +611,25 @@ function iniciaAluno(){
   /* professor adicionando alunos pelo link (precisa da senha mostrada na tela do professor) */
   const chaveConv = "roleta.conv." + codigoAluno;
   const convAdicionados = (store.get(chaveConv, []) || []).filter(n => typeof n === "string" && n);
-  const autorAtual = () => convAdicionados.length ? ($("#selAutor").value || "") : store.get(chave, "");
+  /* nomes adicionados à mão na tela do professor (mesmo navegador) também podem enviar prompt */
+  const nomesManuais = () => (store.get("roleta.manual", []) || []).filter(n => typeof n === "string" && n).map(limpa).filter(Boolean);
+  const temLista = () => convAdicionados.length > 0 || nomesManuais().length > 0;
+  const autorAtual = () => temLista() ? ($("#selAutor").value || "") : store.get(chave, "");
   function atualizaConv(selecionar){
     const box = $("#listaConv"); box.textContent = "";
     convAdicionados.forEach(n => box.appendChild(chip(n, "")));
     const sel = $("#selAutor"), atual = selecionar || sel.value, proprio = store.get(chave, "");
     sel.textContent = "";
-    [...new Set([...(proprio ? [proprio] : []), ...convAdicionados])].forEach(n => {
+    [...new Set([...(proprio ? [proprio] : []), ...convAdicionados, ...nomesManuais()])].forEach(n => {
       const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o);
     });
     if ([...sel.options].some(o => o.value === atual)) sel.value = atual;
-    $("#blocoAutor").classList.toggle("hide", !convAdicionados.length);
+    $("#blocoAutor").classList.toggle("hide", !temLista());
   }
-  if (convAdicionados.length){ atualizaConv(); abreCompartilhar(); }
+  const sincroniza = () => { atualizaConv(); if (temLista()) abreCompartilhar(); };
+  if (temLista()) sincroniza();
+  window.addEventListener("storage", e => { if (e.key === null || e.key === "roleta.manual") sincroniza(); });
+  window.addEventListener("focus", sincroniza);
   $("#btnProfAluno").addEventListener("click", () => {
     const c = $("#cardProfAluno"); c.classList.toggle("hide");
     if (!c.classList.contains("hide")) $("#inSenha").focus();
