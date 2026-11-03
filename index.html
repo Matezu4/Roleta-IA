@@ -101,6 +101,24 @@ dialog::backdrop{background:rgba(10,20,40,.7)}
 select{width:100%;font:inherit;font-size:1.2rem;color:var(--ink);background:var(--bg);border:3px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0 4px}
 .pin{font-family:Fredoka,sans-serif;font-size:1.7rem;letter-spacing:.18em}
 .aluno-larg{max-width:720px;margin:0 auto}
+/* painel recolhível e roleta em destaque */
+.lado{display:grid;gap:16px;align-content:start}
+details.card.sub{padding:0}
+details.sub>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;font-family:Fredoka,sans-serif;font-weight:700;font-size:1.25rem}
+details.sub>summary::-webkit-details-marker{display:none}
+details.sub>summary::after{content:"Minimizar";font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:.85rem;font-weight:700;border:2px solid var(--line);border-radius:999px;padding:2px 10px;flex:none}
+details.sub:not([open])>summary::after{content:"Abrir"}
+details.sub>.subcorpo{padding:0 16px 16px}
+.subcorpo>*+*{margin-top:16px}
+.subcorpo h3{font-family:Fredoka,sans-serif;font-size:1.05rem;margin:0 0 8px}
+.topo-roda{display:flex;justify-content:flex-end;margin-bottom:8px}
+.grid.semlado{grid-template-columns:1fr}
+.grid.semlado .lado{display:none}
+.grid.semlado .wheelbox{max-width:min(100%,78vh)}
+#cardRoda.foco{position:fixed;inset:0;z-index:40;border:0;border-radius:0;box-shadow:none;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:auto;padding:16px;background:var(--card)}
+#cardRoda.foco .wheelbox{max-width:min(94vw,66vh)}
+#cardRoda.foco #resultado{font-size:clamp(2rem,7vw,4rem)}
+#cardRoda.foco .topo-roda{position:absolute;top:12px;right:12px;margin:0}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;align-items:start}
 .lista-envios{display:grid;gap:12px}
 .envio{background:var(--card);border:3px solid var(--line);border-radius:12px;padding:12px}
@@ -197,13 +215,14 @@ dialog.largo{width:min(1000px,94vw);max-height:92vh}
 <section id="viewProf" class="hide">
   <div class="topbar">
     <h1>Roleta da turma</h1>
-    <div class="row"><span id="statusBanco" class="muted" aria-live="polite"></span><span id="contagem" class="status" aria-live="polite"></span></div>
+    <div class="row"><button class="btn ghost peq" id="btnPainel" type="button" aria-pressed="false">Esconder painel</button><span id="statusBanco" class="muted" aria-live="polite"></span><span id="contagem" class="status" aria-live="polite"></span></div>
   </div>
   <p id="avisoConfig" class="warn hide">O Firebase ainda não foi configurado. Siga o LEIA-ME e cole a configuração no topo do script. Enquanto isso, você pode adicionar nomes à mão.</p>
   <p id="avisoRede" class="warn hide" aria-live="polite"></p>
 
-  <div class="grid">
-    <div class="card">
+  <div class="grid" id="gridProf">
+    <div class="card" id="cardRoda">
+      <div class="topo-roda"><button class="btn ghost peq" id="btnFoco" type="button">Roleta em destaque</button></div>
       <div class="wheelbox">
         <div class="pointer" aria-hidden="true"></div>
         <canvas id="roda" width="520" height="520" role="img" aria-label="Roleta com os nomes dos alunos"></canvas>
@@ -212,61 +231,73 @@ dialog.largo{width:min(1000px,94vw);max-height:92vh}
       <div class="row center"><button class="btn big" id="btnGirar">Girar</button></div>
     </div>
 
-    <div class="card panel">
-      <div>
-        <h2>Materiais da aula</h2>
-        <div class="row">
-          <a class="btn ghost hide" id="linkCartilhaProf" target="_blank" rel="noopener">Abrir a cartilha</a>
-          <a class="btn ghost" href="qr.html" target="_blank" rel="noopener">QR codes dos formulários</a>
-        </div>
-      </div>
+    <div class="lado" id="ladoPainel">
+      <details class="card sub" id="detEntrada" open>
+        <summary>Materiais e entrada</summary>
+        <div class="subcorpo">
+          <div>
+            <h3>Materiais da aula</h3>
+            <div class="row">
+              <a class="btn ghost hide" id="linkCartilhaProf" target="_blank" rel="noopener">Abrir a cartilha</a>
+              <a class="btn ghost" href="qr.html" target="_blank" rel="noopener">QR codes dos formulários</a>
+            </div>
+          </div>
 
-      <div id="blocoQR" class="hide">
-        <h2>Alunos entram por aqui</h2>
-        <div class="row">
-          <div class="qrbox" id="qrPequeno" role="button" tabindex="0" aria-label="Ampliar o QR code"></div>
-          <div style="flex:1;min-width:150px">
-            <p class="muted" style="margin-bottom:8px">Aponte a câmera do celular. Toque no QR para ampliar.</p>
-            <div class="linkurl" id="linkTurma"></div>
-            <div class="row" style="margin-top:10px">
-              <button class="btn ghost" id="btnCopiar">Copiar link</button>
+          <div id="blocoQR" class="hide">
+            <h3>Alunos entram por aqui</h3>
+            <div class="row">
+              <div class="qrbox" id="qrPequeno" role="button" tabindex="0" aria-label="Ampliar o QR code"></div>
+              <div style="flex:1;min-width:150px">
+                <p class="muted" style="margin-bottom:8px">Aponte a câmera do celular. Toque no QR para ampliar.</p>
+                <div class="linkurl" id="linkTurma"></div>
+                <div class="row" style="margin-top:10px">
+                  <button class="btn ghost" id="btnCopiar">Copiar link</button>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px">
+              <p class="muted" style="margin-bottom:4px">Senha do professor: abra o link acima, toque em <b>Sou o professor</b> e digite a senha para adicionar alunos que não conseguiram entrar.</p>
+              <div class="row"><strong class="pin" id="pinProf">••••••</strong><button class="btn ghost peq" id="btnPin" type="button">Mostrar</button></div>
             </div>
           </div>
         </div>
-        <div style="margin-top:12px">
-          <p class="muted" style="margin-bottom:4px">Senha do professor: abra o link acima, toque em <b>Sou o professor</b> e digite a senha para adicionar alunos que não conseguiram entrar.</p>
-          <div class="row"><strong class="pin" id="pinProf">••••••</strong><button class="btn ghost peq" id="btnPin" type="button">Mostrar</button></div>
-        </div>
-      </div>
+      </details>
 
-      <div>
-        <h2>Nomes da turma</h2>
-        <div class="chips" id="listaNomes"></div>
-        <div class="row" style="margin-top:10px">
-          <button class="btn ghost" id="btnLimparTudo">Limpar a lista</button>
-          <button class="btn ghost" id="btnNovaTurma">Nova turma (novo QR)</button>
+      <details class="card sub" id="detNomes" open>
+        <summary>Nomes da turma</summary>
+        <div class="subcorpo">
+          <div>
+            <div class="chips" id="listaNomes"></div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn ghost" id="btnLimparTudo">Limpar a lista</button>
+              <button class="btn ghost" id="btnNovaTurma">Nova turma (novo QR)</button>
+            </div>
+          </div>
+          <div>
+            <h3>Adicionar à mão</h3>
+            <textarea id="txtManual" placeholder="Um nome por linha" aria-label="Nomes para adicionar, um por linha"></textarea>
+            <div class="row" style="margin-top:8px">
+              <button class="btn ghost" id="btnAdd">Adicionar</button>
+              <button class="btn ghost" id="btnLimparManual">Apagar os adicionados à mão</button>
+            </div>
+          </div>
         </div>
-      </div>
+      </details>
 
-      <div>
-        <h2>Adicionar à mão</h2>
-        <textarea id="txtManual" placeholder="Um nome por linha" aria-label="Nomes para adicionar, um por linha"></textarea>
-        <div class="row" style="margin-top:8px">
-          <button class="btn ghost" id="btnAdd">Adicionar</button>
-          <button class="btn ghost" id="btnLimparManual">Apagar os adicionados à mão</button>
+      <details class="card sub" id="detSorteio" open>
+        <summary>Sorteio</summary>
+        <div class="subcorpo">
+          <div>
+            <label class="check"><input type="checkbox" id="chkTirar" checked> Tirar da roleta quem já saiu</label>
+            <label class="check"><input type="checkbox" id="chkSom" checked> Som e fanfarra</label>
+            <label class="check"><input type="checkbox" id="chkOcioso" checked> Girar devagar enquanto espera</label>
+            <label class="check"><input type="checkbox" id="chkEfeitos" checked> Confete e ponteiro mexendo</label>
+            <button class="btn ghost" id="btnDevolver">Devolver todos à roleta</button>
+            <p class="muted" style="margin:10px 0 6px">Já sorteados:</p>
+            <div class="chips" id="listaSorteados"></div>
+          </div>
         </div>
-      </div>
-
-      <div>
-        <h2>Sorteio</h2>
-        <label class="check"><input type="checkbox" id="chkTirar" checked> Tirar da roleta quem já saiu</label>
-        <label class="check"><input type="checkbox" id="chkSom" checked> Som e fanfarra</label>
-        <label class="check"><input type="checkbox" id="chkOcioso" checked> Girar devagar enquanto espera</label>
-        <label class="check"><input type="checkbox" id="chkEfeitos" checked> Confete e ponteiro mexendo</label>
-        <button class="btn ghost" id="btnDevolver">Devolver todos à roleta</button>
-        <p class="muted" style="margin:10px 0 6px">Já sorteados:</p>
-        <div class="chips" id="listaSorteados"></div>
-      </div>
+      </details>
     </div>
   </div>
 
@@ -1017,6 +1048,37 @@ function ligaEventosProf(){
   $("#qrPequeno").addEventListener("click", abre);
   $("#qrPequeno").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); abre(); } });
   $("#btnFecharQR").addEventListener("click", () => $("#dlgQR").close());
+
+  /* painel lateral recolhível e roleta em destaque */
+  const grid = $("#gridProf"), cardRoda = $("#cardRoda");
+  const redesenha = () => requestAnimationFrame(() => { if (!state.spinning) desenha(); });
+  const aplicaPainel = () => {
+    const esc = store.get("roleta.ui.semlado", false) === true;
+    grid.classList.toggle("semlado", esc);
+    $("#btnPainel").textContent = esc ? "Mostrar painel" : "Esconder painel";
+    $("#btnPainel").setAttribute("aria-pressed", String(esc));
+    redesenha();
+  };
+  $("#btnPainel").addEventListener("click", () => {
+    store.set("roleta.ui.semlado", store.get("roleta.ui.semlado", false) !== true); aplicaPainel();
+  });
+  aplicaPainel();
+  ["detEntrada", "detNomes", "detSorteio"].forEach(id => {
+    const d = document.getElementById(id), k = "roleta.ui." + id;
+    d.open = store.get(k, true) !== false;
+    d.addEventListener("toggle", () => store.set(k, d.open));
+  });
+  const alternaFoco = ligado => {
+    cardRoda.classList.toggle("foco", ligado);
+    $("#btnFoco").textContent = ligado ? "Sair do destaque" : "Roleta em destaque";
+    document.body.style.overflow = ligado ? "hidden" : "";
+    redesenha();
+  };
+  $("#btnFoco").addEventListener("click", () => alternaFoco(!cardRoda.classList.contains("foco")));
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && cardRoda.classList.contains("foco") && !document.querySelector("dialog[open]")) alternaFoco(false);
+  });
+
   requestAnimationFrame(giroOcioso);
   window.addEventListener("resize", () => { if (!state.spinning) desenha(); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { if (!state.spinning) desenha(); });
