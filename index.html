@@ -95,6 +95,9 @@ dialog::backdrop{background:rgba(10,20,40,.7)}
 .qrgrande{background:#fff;padding:10px;border-radius:10px;width:min(78vmin,560px);height:min(78vmin,560px);margin:0 auto 12px}
 .qrgrande svg{width:100%;height:100%;display:block}
 .sec{margin-top:20px}
+.fotos{display:flex;flex-wrap:wrap;gap:10px;margin-top:8px}
+.fotos figure{margin:0;width:140px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.fotos img{width:100%;display:block;border:2px solid var(--line);border-radius:8px;background:#fff}
 select{width:100%;font:inherit;font-size:1.2rem;color:var(--ink);background:var(--bg);border:3px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0 4px}
 .pin{font-family:Fredoka,sans-serif;font-size:1.7rem;letter-spacing:.18em}
 .aluno-larg{max-width:720px;margin:0 auto}
@@ -172,14 +175,13 @@ dialog.largo{width:min(1000px,94vw);max-height:92vh}
       <label class="lbl" for="inPrompt">Prompt que você usou</label>
       <textarea id="inPrompt" class="alta" maxlength="1500"></textarea>
       <label class="lbl" for="inComentario" style="display:block;margin-top:10px">O que a IA respondeu ou o que você aprendeu (opcional)</label>
-      <textarea id="inComentario" maxlength="600"></textarea>
-      <label class="lbl" for="inFoto" style="display:block;margin-top:10px">Print da conversa (opcional)</label>
-      <input type="file" id="inFoto" accept="image/*">
-      <img id="prevFoto" class="preview hide" alt="Prévia da imagem escolhida">
+      <textarea id="inComentario" class="alta" maxlength="2000"></textarea>
+      <label class="lbl" for="inFoto" style="display:block;margin-top:10px">Prints da conversa (opcional, até 4)</label>
+      <input type="file" id="inFoto" accept="image/*" multiple>
+      <div class="fotos" id="prevFotos"></div>
       <p class="muted" style="margin-top:8px">Antes de enviar, cubra rostos, nomes completos e dados pessoais no print.</p>
       <div class="row">
         <button class="btn" id="btnEnviarPrompt">Enviar para aprovação</button>
-        <button class="btn ghost hide" id="btnRemoverFoto" type="button">Tirar imagem</button>
       </div>
       <p id="msgPrompt" class="muted" aria-live="polite"></p>
     </div>
@@ -414,6 +416,13 @@ function naRoleta(){
 /* ---------- envios (prompts e prints) ---------- */
 const IMG_PREFIXO = "data:image/jpeg;base64,";
 const imgOk = s => typeof s === "string" && s.startsWith(IMG_PREFIXO) && s.length < 200000;
+const MAX_FOTOS = 4;
+/* aceita o formato antigo (uma imagem em texto) e o novo (várias imagens) */
+function listaImgs(v){
+  if (!v) return [];
+  const arr = typeof v === "string" ? [v] : (Array.isArray(v) ? v : Object.keys(v).sort((a, b) => a - b).map(k => v[k]));
+  return arr.filter(imgOk).slice(0, MAX_FOTOS);
+}
 function limpaTexto(t, max){
   return String(t || "").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(/\n{3,}/g, "\n\n").trim().slice(0, max);
 }
@@ -422,7 +431,7 @@ function cartao(item, acoes){
   const h3 = document.createElement("h3"); h3.textContent = item.nome || "Aluno"; el.appendChild(h3);
   const p = document.createElement("p"); p.className = "prompt"; p.textContent = item.prompt || ""; el.appendChild(p);
   if (item.comentario){ const c = document.createElement("p"); c.className = "com"; c.textContent = item.comentario; el.appendChild(c); }
-  if (imgOk(item.img)){ const i = document.createElement("img"); i.src = item.img; i.alt = "Print enviado por " + (item.nome || "aluno"); el.appendChild(i); }
+  (item.imgs || []).forEach((src, k) => { const i = document.createElement("img"); i.src = src; i.alt = "Print " + (k + 1) + " enviado por " + (item.nome || "aluno"); el.appendChild(i); });
   if (acoes && acoes.length){
     const d = document.createElement("div"); d.className = "acoes";
     acoes.forEach(a => {
@@ -441,7 +450,7 @@ function preenche(container, itens, vazio, acoesDe){
 function assinaMural(codigo, aoMudar, aoErro){
   const d = { mural: {}, img: {} };
   const emite = () => aoMudar(Object.entries(d.mural)
-    .map(([id, v]) => ({ id, ...v, img: d.img[id] || "" }))
+    .map(([id, v]) => ({ id, ...v, imgs: listaImgs(d.img[id]) }))
     .sort((a, b) => (b.criado || 0) - (a.criado || 0)));
   const u1 = onValue(ref(db, `turmas/${codigo}/mural`), s => { d.mural = s.val() || {}; emite(); }, aoErro);
   const u2 = onValue(ref(db, `turmas/${codigo}/muralImg`), s => { d.img = s.val() || {}; emite(); }, aoErro);
@@ -459,7 +468,7 @@ async function comprimir(file){
       const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
       ctx.drawImage(img, 0, 0, c.width, c.height);
       const d = c.toDataURL("image/jpeg", q);
-      if (d.length <= 150000) return d;
+      if (d.length <= 120000) return d;
     }
     throw new Error("imagem-grande");
   } finally { URL.revokeObjectURL(url); }
@@ -470,7 +479,7 @@ let alunoIniciado = false;
 function iniciaAluno(){
   if (alunoIniciado) return; alunoIniciado = true;
   const chave = "roleta.enviado." + codigoAluno;
-  let fotoData = "", muralOk = false;
+  let fotos = [], muralOk = false;
   const jaEnviado = store.get(chave, "");
   async function abreCompartilhar(){
     $("#blocoCompartilhar").classList.remove("hide");
@@ -522,24 +531,31 @@ function iniciaAluno(){
     $("#btnEnviar").disabled = false;
   }
   const msgP = $("#msgPrompt");
+  function desenhaFotos(){
+    const box = $("#prevFotos"); box.textContent = "";
+    fotos.forEach((src, i) => {
+      const f = document.createElement("figure");
+      const im = document.createElement("img"); im.src = src; im.alt = "Prévia do print " + (i + 1);
+      const b = document.createElement("button"); b.type = "button"; b.className = "btn ghost peq"; b.textContent = "Tirar";
+      b.addEventListener("click", () => { fotos.splice(i, 1); desenhaFotos(); });
+      f.append(im, b); box.appendChild(f);
+    });
+  }
   $("#inFoto").addEventListener("change", async e => {
-    const f = e.target.files && e.target.files[0];
-    fotoData = ""; $("#prevFoto").classList.add("hide"); $("#btnRemoverFoto").classList.add("hide");
-    if (!f) return;
-    msgP.className = "muted"; msgP.textContent = "Preparando a imagem...";
-    try{
-      fotoData = await comprimir(f);
-      $("#prevFoto").src = fotoData; $("#prevFoto").classList.remove("hide"); $("#btnRemoverFoto").classList.remove("hide");
-      msgP.textContent = "";
-    }catch(err){
-      msgP.className = "warn"; msgP.textContent = "Não consegui usar essa imagem. Tente um print de tela."; e.target.value = "";
+    const arq = [...(e.target.files || [])]; e.target.value = "";
+    if (!arq.length) return;
+    let falhou = false, cortou = false;
+    for (const f of arq){
+      if (fotos.length >= MAX_FOTOS){ cortou = true; break; }
+      msgP.className = "muted"; msgP.textContent = "Preparando a imagem...";
+      try{ fotos.push(await comprimir(f)); desenhaFotos(); }catch(err){ falhou = true; }
     }
-  });
-  $("#btnRemoverFoto").addEventListener("click", () => {
-    fotoData = ""; $("#inFoto").value = ""; $("#prevFoto").classList.add("hide"); $("#btnRemoverFoto").classList.add("hide");
+    msgP.className = falhou || cortou ? "warn" : "muted";
+    msgP.textContent = falhou ? "Alguma imagem não deu certo. Tente um print de tela."
+      : cortou ? "O máximo é " + MAX_FOTOS + " prints." : "";
   });
   $("#btnEnviarPrompt").addEventListener("click", async () => {
-    const prompt = limpaTexto($("#inPrompt").value, 1500), comentario = limpaTexto($("#inComentario").value, 600);
+    const prompt = limpaTexto($("#inPrompt").value, 1500), comentario = limpaTexto($("#inComentario").value, 2000);
     const nome = autorAtual();
     if (!prompt){ msgP.className = "warn"; msgP.textContent = "Escreva o prompt que você usou."; return; }
     if (!nome){ msgP.className = "warn"; msgP.textContent = "Entre na roleta primeiro."; return; }
@@ -550,8 +566,8 @@ function iniciaAluno(){
       const dados = { uid: auth.currentUser.uid, nome, prompt, criado: Date.now() };
       if (comentario) dados.comentario = comentario;
       await espera(set(r, dados), 12000, "envio");
-      if (fotoData) await espera(set(ref(db, `turmas/${codigoAluno}/imagens/${r.key}`), fotoData), 20000, "imagem");
-      $("#inPrompt").value = ""; $("#inComentario").value = ""; $("#btnRemoverFoto").click();
+      if (fotos.length) await espera(set(ref(db, `turmas/${codigoAluno}/imagens/${r.key}`), Object.fromEntries(fotos.map((x, i) => [i, x]))), 40000, "imagem");
+      $("#inPrompt").value = ""; $("#inComentario").value = ""; fotos = []; desenhaFotos();
       msgP.className = "ok"; msgP.textContent = "Enviado! O professor vai ver e aprovar.";
     }catch(e){
       msgP.className = "warn"; msgP.textContent = msgErro(e);
@@ -693,7 +709,7 @@ function baixarMural(){
 <h3>Prompt</h3>
 <p class="txt">${esc(it.prompt)}</p>
 ${it.comentario ? `<h3>Comentário</h3>\n<p class="txt">${esc(it.comentario)}</p>` : ""}
-${imgOk(it.img) ? `<h3>Print</h3>\n<img src="${it.img}" alt="Print enviado por ${esc(it.nome)}">` : ""}
+${(it.imgs || []).length ? `<h3>${it.imgs.length > 1 ? "Prints" : "Print"}</h3>\n` + it.imgs.map((src, k) => `<img src="${src}" alt="Print ${k + 1} enviado por ${esc(it.nome)}">`).join("\n") : ""}
 </article>`;
   }).join("\n");
   const html = `<!DOCTYPE html>
@@ -721,7 +737,7 @@ ${corpo}
 /* ---------- envios no painel do professor ---------- */
 function renderEnvios(){
   const pend = Object.entries(state.envios)
-    .map(([id, v]) => ({ id, ...v, img: state.imagens[id] || "" }))
+    .map(([id, v]) => ({ id, ...v, imgs: listaImgs(state.imagens[id]) }))
     .sort((a, b) => (a.criado || 0) - (b.criado || 0));
   $("#tPend").textContent = "Aguardando aprovação (" + pend.length + ")";
   $("#tMural").textContent = "No mural (" + state.muralItens.length + ")";
@@ -738,7 +754,7 @@ async function aprovar(it){
   const base = `turmas/${state.codigo}`;
   try{
     await set(ref(db, `${base}/mural/${it.id}`), { nome: it.nome, prompt: it.prompt, comentario: it.comentario || "", criado: it.criado || Date.now() });
-    if (imgOk(it.img)) await set(ref(db, `${base}/muralImg/${it.id}`), it.img);
+    if (it.imgs.length) await set(ref(db, `${base}/muralImg/${it.id}`), Object.fromEntries(it.imgs.map((x, i) => [i, x])));
     await Promise.all([remove(ref(db, `${base}/envios/${it.id}`)), remove(ref(db, `${base}/imagens/${it.id}`))]);
   }catch(e){ aoErroRede(e); }
 }
