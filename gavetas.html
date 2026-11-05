@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Princípio das Gavetas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FBFCFE; --grid:#EAF1FB; --ink:#14284B; --muted:#4A5E80; --card:#FFFFFF;
+  --line:#14284B; --accent:#FFC93C; --accent-ink:#14284B; --warn:#B3261E; --ok:#1B7A4B; --gaveta:#E9F0FC;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0F1B33; --grid:#16264A; --ink:#EAF1FB; --muted:#A9B8D6; --card:#14284B;
+    --line:#EAF1FB; --accent:#FFC93C; --accent-ink:#14284B; --warn:#FF8A80; --ok:#7FD1AE; --gaveta:#1B3260;
+    color-scheme: dark;
+  }
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  font-family:"Atkinson Hyperlegible",system-ui,sans-serif; color:var(--ink); background:var(--bg);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:28px 28px; min-height:100vh;
+  padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));
+}
+main{max-width:1100px;margin:0 auto}
+.hide{display:none!important}
+h1,h2,h3{font-family:Fredoka,sans-serif;margin:0 0 8px;line-height:1.15}
+h1{font-size:clamp(1.7rem,5vw,2.4rem)}
+h2{font-size:1.25rem}
+h3{font-size:1.05rem}
+p{line-height:1.5;margin:0 0 12px}
+.muted{color:var(--muted)}
+.warn{color:var(--warn);font-weight:700}
+.ok{color:var(--ok);font-weight:700}
+.btn{
+  font-family:Fredoka,sans-serif;font-size:1rem;font-weight:700;color:var(--accent-ink);background:var(--accent);
+  border:3px solid var(--line);border-radius:12px;padding:8px 14px;cursor:pointer;box-shadow:3px 3px 0 var(--line);
+  display:inline-block;text-decoration:none;
+}
+.btn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--line)}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.peq{font-size:.9rem;padding:5px 10px}
+.btn.big{font-size:1.2rem;padding:12px 20px}
+:focus-visible{outline:4px solid #3D7BFF;outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.between{justify-content:space-between}
+.card{background:var(--card);border:3px solid var(--line);border-radius:14px;padding:14px;box-shadow:5px 5px 0 var(--line)}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+label{display:block;font-weight:700;font-size:.95rem;margin-top:10px}
+label>input,label>select{margin-top:4px}
+input[type=text],input[type=number],input[type=date],select{
+  width:100%;font:inherit;font-size:1.1rem;color:var(--ink);background:var(--bg);
+  border:3px solid var(--line);border-radius:10px;padding:9px 10px;
+}
+.nota{font-weight:400;font-size:.88rem;color:var(--muted);margin:4px 0 0}
+
+/* professor */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.grid.semlado{grid-template-columns:1fr}
+.grid.semlado .lado{display:none}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+.lado{display:grid;gap:16px;align-content:start}
+details.card.sub{padding:0}
+details.sub>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px;font-family:Fredoka,sans-serif;font-weight:700;font-size:1.2rem}
+details.sub>summary::-webkit-details-marker{display:none}
+details.sub>summary::after{content:"Minimizar";font-family:"Atkinson Hyperlegible",system-ui,sans-serif;font-size:.85rem;font-weight:700;border:2px solid var(--line);border-radius:999px;padding:2px 10px;flex:none}
+details.sub:not([open])>summary::after{content:"Abrir"}
+details.sub>.subcorpo{padding:0 16px 16px}
+.qrbox{background:#fff;border:3px solid var(--line);border-radius:10px;padding:8px;width:min(100%,220px);aspect-ratio:1/1;margin:8px 0;cursor:pointer}
+.qrbox svg{width:100%;height:100%;display:block}
+.linkurl{font-size:.9rem;overflow-wrap:anywhere;color:var(--muted)}
+dialog{border:3px solid var(--line);border-radius:16px;background:var(--card);color:var(--ink);padding:18px;max-width:94vw;text-align:center}
+dialog::backdrop{background:rgba(10,20,40,.75)}
+.qrgrande{background:#fff;padding:12px;border-radius:12px;width:min(72vmin,560px);height:min(72vmin,560px);margin:10px auto}
+.qrgrande svg{width:100%;height:100%;display:block}
+
+.princ{font-family:Fredoka,sans-serif;font-weight:500;font-size:clamp(1.05rem,2.6vw,1.45rem);line-height:1.3;margin:0 0 6px;min-height:2.6em}
+.princ.garantido{color:var(--ok)}
+.placar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+.placar span{border:2px solid var(--line);border-radius:999px;padding:2px 12px;font-weight:700;font-size:.95rem}
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:10px;margin-bottom:14px}
+.gaveta{display:flex;flex-direction:column;min-width:0}
+.pilha{display:flex;flex-direction:column-reverse;gap:4px;min-height:min(220px,32vh);overflow:hidden;padding:4px;background:var(--gaveta);border:3px solid var(--line);border-bottom:0;border-radius:12px 12px 0 0;justify-content:flex-start}
+.token{
+  font:inherit;font-weight:700;font-size:.85rem;line-height:1.1;text-align:center;color:#14284B;background:#FFC93C;
+  border:2px solid #14284B;border-radius:999px;padding:5px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  display:block;width:100%;cursor:default;
+}
+button.token{cursor:pointer}
+.token.c1{background:#4F7BE8;color:#fff}.token.c2{background:#fff}.token.c3{background:#7FD1AE}.token.c4{background:#FF8A6B}
+.token.cai{animation:cair .9s cubic-bezier(.25,1.35,.5,1) var(--d,0s) both}
+@keyframes cair{0%{transform:translateY(-460px) rotate(-10deg);opacity:0}12%{opacity:1}100%{transform:none;opacity:1}}
+.frente{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px 10px;background:var(--accent);color:var(--accent-ink);border:3px solid var(--line);border-radius:0 0 12px 12px;font-family:Fredoka,sans-serif;font-weight:700}
+.frente .rot{font-size:1.05rem}
+.frente .puxador{width:36px;height:7px;border-radius:99px;background:var(--line);opacity:.8}
+.frente .qtd{font-size:.9rem;font-family:"Atkinson Hyperlegible",sans-serif}
+.gaveta.max .pilha,.gaveta.max .frente{border-color:var(--ok);box-shadow:0 0 0 3px var(--ok)}
+.gaveta.max .frente{animation:pulsa 1.4s ease-in-out infinite}
+@keyframes pulsa{50%{transform:translateY(-3px)}}
+@media (prefers-reduced-motion: reduce){.token.cai,.gaveta.max .frente{animation:none!important}}
+
+/* aluno */
+.aluno{max-width:560px;margin:0 auto}
+.aluno .card{margin-top:16px}
+.demo{display:flex;flex-direction:column;align-items:center;max-width:200px;margin:16px auto 0}
+.demo .token{width:140px;font-size:1rem;padding:8px 10px;margin-bottom:8px}
+.demo .frente{width:100%;border-radius:12px}
+.demo .frente .rot{font-size:1.6rem}
+</style>
+</head>
+<body>
+<main>
+
+<!-- ======================= PROFESSOR ======================= -->
+<div id="viewProf" class="hide">
+  <div class="topbar">
+    <h1>Princípio das Gavetas</h1>
+    <div class="row">
+      <button class="btn ghost peq" id="btnPainel" type="button" aria-pressed="false">Esconder painel</button>
+      <a class="btn ghost peq" href="index.html#professor">Voltar à roleta</a>
+    </div>
+  </div>
+  <p id="erroProf" class="warn hide" role="alert"></p>
+
+  <div class="grid" id="gridProf">
+    <div class="card" id="cardBoard">
+      <p class="princ" id="princ" aria-live="polite">Conectando…</p>
+      <div class="placar" aria-live="polite">
+        <span id="pAlunos">0 alunos</span><span id="pGavetas">0 gavetas</span><span id="pMax">Maior gaveta: 0</span>
+      </div>
+      <div class="board" id="board"></div>
+      <div class="row">
+        <button class="btn" id="btnReprisar" type="button">Repetir a queda</button>
+        <button class="btn ghost" id="btnLimpar" type="button">Nova rodada (limpar alunos)</button>
+      </div>
+    </div>
+
+    <div class="lado" id="ladoProf">
+      <details class="card sub" id="detEntrada" open>
+        <summary>Entrada dos alunos</summary>
+        <div class="subcorpo">
+          <label for="selRegra">A gaveta de cada aluno vem de:</label>
+          <select id="selRegra"></select>
+          <p class="nota">Ao trocar a regra, os alunos atuais são apagados e todos entram de novo.</p>
+          <h3 style="margin-top:14px">Alunos entram por aqui</h3>
+          <div class="qrbox" id="qrPequeno" role="button" tabindex="0" aria-label="Ampliar o QR code"></div>
+          <div class="linkurl" id="linkSala"></div>
+          <div class="row" style="margin-top:10px"><button class="btn ghost peq" id="btnCopiar" type="button">Copiar link</button></div>
+        </div>
+      </details>
+
+      <details class="card sub" id="detManual">
+        <summary>Adicionar à mão</summary>
+        <div class="subcorpo">
+          <p class="nota" style="margin-top:0">Para quem não tem celular. Dá para adicionar quantos quiser.</p>
+          <label for="inNomeProf">Nome do aluno</label>
+          <input type="text" id="inNomeProf" maxlength="30" autocomplete="off" enterkeyhint="send">
+          <div id="infoProf"></div>
+          <div class="row" style="margin-top:12px"><button class="btn" id="btnAddProf" type="button">Adicionar aluno</button></div>
+          <p id="msgProf" class="nota" aria-live="polite"></p>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ALUNO ======================= -->
+<div id="viewAluno" class="hide">
+  <div class="aluno">
+    <h1>Princípio das Gavetas</h1>
+    <p id="erroAluno" class="warn hide" role="alert"></p>
+
+    <div class="card hide" id="formAluno">
+      <h2>Entre na dinâmica</h2>
+      <p class="muted" id="regraAluno"></p>
+      <label for="inNome">Seu nome</label>
+      <input type="text" id="inNome" maxlength="30" autocomplete="given-name" enterkeyhint="go">
+      <div id="infoAluno"></div>
+      <div class="row" style="margin-top:14px"><button class="btn big" id="btnEntrar" type="button">Entrar</button></div>
+      <p id="msgAluno" class="nota" aria-live="polite"></p>
+    </div>
+
+    <div class="card hide" id="feitoAluno" style="text-align:center">
+      <h2 id="feitoTitulo"></h2>
+      <p>Você caiu na gaveta <b id="feitoGaveta"></b>. Olhe a tela do professor!</p>
+      <div class="demo">
+        <div class="token cai" id="meuToken"></div>
+        <div class="frente"><span class="rot" id="meuRot"></span><span class="puxador"></span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlgQR" aria-label="QR code ampliado">
+  <div class="qrgrande" id="qrGrande"></div>
+  <button class="btn" id="btnFecharQR" type="button">Fechar</button>
+</dialog>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getDatabase, ref, set, push, get, onValue, remove, update } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCLhsH7-tqvia3GOI2fi4Q0NkZR7htG3UI",
+  authDomain: "sorteio-ia.firebaseapp.com",
+  databaseURL: "https://sorteio-ia-default-rtdb.firebaseio.com",
+  projectId: "sorteio-ia",
+  appId: "1:982903371635:web:5522f9203a18949b023706"
+};
+
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const espera = (p, ms, rotulo) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout:" + rotulo)), ms))]);
+const limpa = n => String(n || "").replace(/[\u0000-\u001F<>]/g, "").replace(/\s+/g, " ").trim().slice(0, 30);
+const pl = (n, s, p) => n + " " + (n === 1 ? s : p);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+/* ---------- regras: de onde vem a gaveta ---------- */
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DIAS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+const REGRAS = {
+  mes:     { nome: "Mês de nascimento", curtas: MESES.map(m => m.slice(0, 3)), longas: MESES, pergunta: "A gaveta vem do mês em que você nasceu." },
+  semana:  { nome: "Dia da semana de nascimento", curtas: DIAS.map(d => d.slice(0, 3)), longas: DIAS, pergunta: "A gaveta vem do dia da semana em que você nasceu." },
+  inicial: { nome: "Inicial do nome", curtas: ["A–E","F–J","K–O","P–T","U–Z"], longas: ["A a E","F a J","K a O","P a T","U a Z"], pergunta: "A gaveta vem da primeira letra do seu nome." },
+  dia:     { nome: "Último algarismo do dia de nascimento", curtas: ["0","1","2","3","4","5","6","7","8","9"], longas: ["0","1","2","3","4","5","6","7","8","9"].map(x => "terminada em " + x), pergunta: "A gaveta vem do último algarismo do dia do mês em que você nasceu (por exemplo, dia 17 vai para a gaveta 7)." }
+};
+
+function gavetaInicial(nome){
+  const c = String(nome).normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().charAt(0).toUpperCase();
+  if (c.length !== 1 || c < "A" || c > "Z") return -1;
+  return Math.min(4, Math.floor((c.charCodeAt(0) - 65) / 5));
+}
+/* monta os campos da regra e devolve ler(nome) -> {g} ou {erro} */
+function montaCampos(regra, host){
+  host.textContent = "";
+  const envolve = (texto, el) => { const l = document.createElement("label"); l.append(texto, el); host.appendChild(l); };
+  const nota = t => { const p = document.createElement("p"); p.className = "nota"; p.textContent = t; host.appendChild(p); };
+  if (regra === "mes"){
+    const el = document.createElement("select");
+    el.append(new Option("Escolha o mês…", ""));
+    MESES.forEach((m, i) => el.append(new Option(m, String(i))));
+    envolve("Mês em que você nasceu", el);
+    return () => el.value === "" ? { erro: "Escolha o mês de nascimento." } : { g: Number(el.value) };
+  }
+  if (regra === "semana"){
+    const el = document.createElement("input"); el.type = "date"; el.min = "1900-01-01";
+    el.max = new Date().toISOString().slice(0, 10);
+    envolve("Data de nascimento", el);
+    nota("A data não é enviada: o site só calcula o dia da semana e guarda esse resultado.");
+    return () => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(el.value);
+      if (!m) return { erro: "Escolha a data de nascimento." };
+      const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+      return isNaN(d) ? { erro: "Data inválida." } : { g: d.getDay() };
+    };
+  }
+  if (regra === "dia"){
+    const el = document.createElement("input"); el.type = "number"; el.min = "1"; el.max = "31"; el.inputMode = "numeric";
+    envolve("Dia do mês em que você nasceu (1 a 31)", el);
+    return () => {
+      const n = Number(el.value);
+      return Number.isInteger(n) && n >= 1 && n <= 31 ? { g: n % 10 } : { erro: "Digite um dia entre 1 e 31." };
+    };
+  }
+  nota("Não precisa de mais nada: a gaveta vem da primeira letra do nome.");
+  return nome => { const g = gavetaInicial(nome); return g < 0 ? { erro: "O nome precisa começar com uma letra." } : { g }; };
+}
+
+/* ---------- Firebase ---------- */
+let auth = null, db = null;
+async function conectar(){
+  if (!auth){ const app = initializeApp(FIREBASE_CONFIG); auth = getAuth(app); db = getDatabase(app); }
+  await espera(auth.authStateReady(), 12000, "auth");
+  if (!auth.currentUser) await espera(signInAnonymously(auth), 12000, "login");
+  return auth.currentUser.uid;
+}
+function msgErro(e){
+  console.error(e);
+  const c = String((e && (e.code || e.message)) || "");
+  if (c.includes("timeout")) return "Demorou demais para falar com o banco. Confira a internet e tente de novo.";
+  if (c.includes("PERMISSION") || c.includes("permission")) return "Sem permissão. Confira se as regras do banco foram publicadas.";
+  if (c.includes("network") || c.includes("Failed to fetch")) return "Sem conexão com a internet.";
+  return "Algo deu errado: " + c;
+}
+const ehPermissao = e => /PERMISSION|permission/.test(String((e && (e.code || e.message)) || ""));
+
+function qrSvg(texto){
+  if (typeof qrcode !== "function") return null;
+  const qr = qrcode(0, "M"); qr.addData(texto); qr.make();
+  const n = qr.getModuleCount(), m = 3; let d = "";
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + m} ${r + m}h1v1h-1z`;
+  const t = n + m * 2;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${t} ${t}" shape-rendering="crispEdges" role="img" aria-label="QR code da sala"><rect width="${t}" height="${t}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+}
+
+/* ====================== PROFESSOR ====================== */
+async function iniciaProf(){
+  $("#viewProf").classList.remove("hide");
+  const erro = t => { const e = $("#erroProf"); e.textContent = t; e.classList.toggle("hide", !t); };
+  let sala = store.get("gav.sala", ""), regra = "mes", lista = [], leu = false, vistos = new Set(), leitor = null;
+
+  let uid;
+  try{ uid = await conectar(); }catch(e){ erro(msgErro(e)); $("#princ").textContent = ""; return; }
+
+  /* painel e containers recolhíveis */
+  const grid = $("#gridProf");
+  const aplicaPainel = () => {
+    const esc = store.get("gav.semlado", false) === true;
+    grid.classList.toggle("semlado", esc);
+    $("#btnPainel").textContent = esc ? "Mostrar painel" : "Esconder painel";
+    $("#btnPainel").setAttribute("aria-pressed", String(esc));
+  };
+  $("#btnPainel").addEventListener("click", () => { store.set("gav.semlado", store.get("gav.semlado", false) !== true); aplicaPainel(); });
+  aplicaPainel();
+  ["detEntrada", "detManual"].forEach(id => {
+    const d = document.getElementById(id), k = "gav.ui." + id;
+    d.open = store.get(k, id === "detEntrada") !== false;
+    d.addEventListener("toggle", () => store.set(k, d.open));
+  });
+
+  /* escolher a sala */
+  const novoCodigo = () => Array.from(crypto.getRandomValues(new Uint8Array(5)), x => "abcdefghjkmnpqrstuvwxyz23456789"[x % 31]).join("");
+  try{
+    for (let t = 0; t < 6; t++){
+      if (!sala) sala = novoCodigo();
+      try{ await espera(set(ref(db, `salas/${sala}/dono`), uid), 12000, "sala"); store.set("gav.sala", sala); break; }
+      catch(e){ if (!ehPermissao(e)) throw e; sala = ""; }
+    }
+    if (!sala) throw new Error("Não consegui abrir uma sala.");
+    const rr = ref(db, `salas/${sala}/regra`);
+    const atual = (await espera(get(rr), 12000, "regra")).val();
+    if (REGRAS[atual]) regra = atual; else await espera(set(rr, regra), 12000, "regra");
+  }catch(e){ erro(msgErro(e)); $("#princ").textContent = ""; return; }
+
+  /* regras no seletor */
+  const sel = $("#selRegra");
+  Object.entries(REGRAS).forEach(([k, r]) => sel.append(new Option(r.nome, k)));
+
+  /* QR e link */
+  const link = location.origin + location.pathname + "?s=" + sala;
+  $("#linkSala").textContent = link;
+  const svg = qrSvg(link);
+  if (svg){ $("#qrPequeno").innerHTML = svg; $("#qrGrande").innerHTML = svg; }
+  const abreQR = () => $("#dlgQR").showModal();
+  $("#qrPequeno").addEventListener("click", abreQR);
+  $("#qrPequeno").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); abreQR(); } });
+  $("#btnFecharQR").addEventListener("click", () => $("#dlgQR").close());
+  $("#btnCopiar").addEventListener("click", async () => {
+    try{ await navigator.clipboard.writeText(link); $("#btnCopiar").textContent = "Copiado!"; }
+    catch(e){ $("#btnCopiar").textContent = "Copie o link acima"; }
+    setTimeout(() => { $("#btnCopiar").textContent = "Copiar link"; }, 1800);
+  });
+
+  /* desenho da pilha de gavetas */
+  function desenha(reproduz){
+    const R = REGRAS[regra], M = R.curtas.length;
+    const porG = R.curtas.map(() => []);
+    const visiveis = lista.filter(a => a.g < M);
+    visiveis.forEach(a => porG[a.g].push(a));
+    const maior = Math.max(0, ...porG.map(x => x.length)), N = visiveis.length;
+    const atraso = new Map(visiveis.map((a, i) => [a.id, i * 0.28]));
+    const board = $("#board"); board.textContent = "";
+    R.curtas.forEach((rot, i) => {
+      const g = document.createElement("div"); g.className = "gaveta" + (maior >= 2 && porG[i].length === maior ? " max" : "");
+      const pilha = document.createElement("div"); pilha.className = "pilha";
+      porG[i].forEach(a => {
+        const t = document.createElement("button"); t.type = "button";
+        t.className = "token" + (a.cor ? " c" + a.cor : "");
+        t.textContent = a.nome; t.title = a.nome + " (clique para remover)";
+        t.setAttribute("aria-label", "Remover " + a.nome);
+        t.addEventListener("click", async () => {
+          if (!confirm("Remover " + a.nome + "?")) return;
+          try{ await remove(ref(db, `salas/${sala}/alunos/${a.id}`)); }catch(e){ erro(msgErro(e)); }
+        });
+        if (reproduz || (leu && !vistos.has(a.id))){
+          t.classList.add("cai"); t.style.setProperty("--d", (reproduz ? atraso.get(a.id) : 0) + "s");
+        }
+        pilha.appendChild(t);
+      });
+      const frente = document.createElement("div"); frente.className = "frente";
+      frente.innerHTML = `<span class="rot">${esc(rot)}</span><span class="puxador"></span><span class="qtd">${porG[i].length}</span>`;
+      frente.title = R.longas[i];
+      g.append(pilha, frente); board.appendChild(g);
+    });
+    lista.forEach(a => vistos.add(a.id));
+
+    $("#pAlunos").textContent = pl(N, "aluno", "alunos");
+    $("#pGavetas").textContent = pl(M, "gaveta", "gavetas");
+    $("#pMax").textContent = "Maior gaveta: " + maior;
+    const p = $("#princ"); p.classList.toggle("garantido", N > M);
+    if (!N) p.textContent = "Aguardando os alunos. Quantos alunos garantem que duas pessoas caiam na mesma gaveta?";
+    else if (N > M) p.textContent = `Garantido! ${pl(N, "aluno", "alunos")} e ${pl(M, "gaveta", "gavetas")}: alguma gaveta tem pelo menos ${Math.ceil(N / M)}. Agora a maior tem ${maior}.`;
+    else if (maior >= 2) p.textContent = `Coincidiu! Mas foi sorte: com ${pl(N, "aluno", "alunos")} e ${pl(M, "gaveta", "gavetas")} ainda não era garantido.`;
+    else p.textContent = `${pl(N, "aluno", "alunos")} e ${pl(M, "gaveta", "gavetas")}: ainda dá para todos ficarem em gavetas diferentes. Faltam ${M + 1 - N} para garantir.`;
+  }
+
+  /* escuta o banco */
+  onValue(ref(db, `salas/${sala}/regra`), s => {
+    const v = s.val();
+    if (!REGRAS[v]) return;
+    const mudou = v !== regra || !leitor;
+    regra = v; sel.value = v;
+    if (mudou){ leitor = montaCampos(regra, $("#infoProf")); }
+    desenha(false);
+  }, e => erro(msgErro(e)));
+  onValue(ref(db, `salas/${sala}/alunos`), s => {
+    const v = s.val() || {};
+    const R = REGRAS[regra];
+    lista = Object.entries(v).map(([id, x]) => ({ id, nome: limpa(x && x.nome), g: x && x.g, t: Number(x && x.t) || 0 }))
+      .filter(a => a.nome && Number.isInteger(a.g) && a.g >= 0 && a.g < R.curtas.length)
+      .sort((a, b) => a.t - b.t);
+    lista.forEach((a, i) => { a.cor = (i % 5) || ""; });
+    desenha(false); leu = true;
+  }, e => erro(msgErro(e)));
+
+  /* ações */
+  sel.addEventListener("change", async () => {
+    const nova = sel.value;
+    if (nova === regra) return;
+    if (lista.length && !confirm("Trocar a regra apaga os alunos atuais. Continuar?")){ sel.value = regra; return; }
+    try{ await espera(update(ref(db), { [`salas/${sala}/regra`]: nova, [`salas/${sala}/alunos`]: null }), 12000, "regra"); vistos = new Set(); }
+    catch(e){ erro(msgErro(e)); sel.value = regra; }
+  });
+  $("#btnLimpar").addEventListener("click", async () => {
+    if (lista.length && !confirm("Apagar todos os alunos para começar uma nova rodada?")) return;
+    try{ await espera(remove(ref(db, `salas/${sala}/alunos`)), 12000, "limpar"); vistos = new Set(); }
+    catch(e){ erro(msgErro(e)); }
+  });
+  $("#btnReprisar").addEventListener("click", () => desenha(true));
+
+  async function addProf(){
+    const nome = limpa($("#inNomeProf").value), msg = $("#msgProf");
+    if (!nome){ msg.className = "nota warn"; msg.textContent = "Escreva o nome do aluno."; $("#inNomeProf").focus(); return; }
+    const r = leitor(nome);
+    if (r.erro){ msg.className = "nota warn"; msg.textContent = r.erro; return; }
+    $("#btnAddProf").disabled = true;
+    try{
+      await espera(push(ref(db, `salas/${sala}/alunos`), { nome, g: r.g, t: Date.now() }), 12000, "add");
+      msg.className = "nota ok"; msg.textContent = nome + " caiu na gaveta " + REGRAS[regra].longas[r.g] + ".";
+      $("#inNomeProf").value = ""; leitor = montaCampos(regra, $("#infoProf")); $("#inNomeProf").focus();
+    }catch(e){ msg.className = "nota warn"; msg.textContent = msgErro(e); }
+    $("#btnAddProf").disabled = false;
+  }
+  $("#btnAddProf").addEventListener("click", addProf);
+  $("#inNomeProf").addEventListener("keydown", e => { if (e.key === "Enter") addProf(); });
+}
+
+/* ====================== ALUNO ====================== */
+async function iniciaAluno(codigo){
+  $("#viewAluno").classList.remove("hide");
+  const erro = t => { const e = $("#erroAluno"); e.textContent = t; e.classList.toggle("hide", !t); if (t){ $("#formAluno").classList.add("hide"); $("#feitoAluno").classList.add("hide"); } };
+  let uid;
+  try{ uid = await conectar(); }catch(e){ erro(msgErro(e)); return; }
+
+  let regra = null, meu = null, leitor = null;
+  const render = () => {
+    if (!regra) return;
+    const R = REGRAS[regra];
+    if (meu && Number.isInteger(meu.g) && meu.g >= 0 && meu.g < R.curtas.length){
+      $("#formAluno").classList.add("hide"); $("#feitoAluno").classList.remove("hide");
+      $("#feitoTitulo").textContent = "Pronto, " + limpa(meu.nome) + "!";
+      $("#feitoGaveta").textContent = R.longas[meu.g];
+      $("#meuToken").textContent = limpa(meu.nome); $("#meuRot").textContent = R.curtas[meu.g];
+    }else{
+      $("#feitoAluno").classList.add("hide"); $("#formAluno").classList.remove("hide");
+    }
+  };
+  onValue(ref(db, `salas/${codigo}/regra`), s => {
+    const v = s.val();
+    if (!REGRAS[v]){ erro("Esta sala não existe ou ainda não foi aberta pelo professor. Peça um novo QR."); return; }
+    erro("");
+    if (v !== regra){ regra = v; leitor = montaCampos(regra, $("#infoAluno")); $("#regraAluno").textContent = REGRAS[regra].pergunta; $("#msgAluno").textContent = ""; }
+    render();
+  }, e => erro(ehPermissao(e) ? "Esta sala não existe ou ainda não foi aberta pelo professor. Peça um novo QR." : msgErro(e)));
+  onValue(ref(db, `salas/${codigo}/alunos/${uid}`), s => { meu = s.val(); render(); }, () => {});
+
+  async function entrar(){
+    const nome = limpa($("#inNome").value), msg = $("#msgAluno");
+    if (!nome){ msg.className = "nota warn"; msg.textContent = "Escreva o seu nome."; $("#inNome").focus(); return; }
+    const r = leitor(nome);
+    if (r.erro){ msg.className = "nota warn"; msg.textContent = r.erro; return; }
+    $("#btnEntrar").disabled = true; msg.className = "nota"; msg.textContent = "Entrando…";
+    try{
+      await espera(set(ref(db, `salas/${codigo}/alunos/${uid}`), { nome, g: r.g, t: Date.now() }), 12000, "entrar");
+      msg.textContent = "";
+    }catch(e){
+      msg.className = "nota warn";
+      msg.textContent = ehPermissao(e) ? "Você já entrou nesta rodada." : msgErro(e);
+    }
+    $("#btnEntrar").disabled = false;
+  }
+  $("#btnEntrar").addEventListener("click", entrar);
+  $("#inNome").addEventListener("keydown", e => { if (e.key === "Enter") entrar(); });
+}
+
+const codigoAluno = (new URLSearchParams(location.search).get("s") || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 12);
+if (codigoAluno) iniciaAluno(codigoAluno); else iniciaProf();
+</script>
+</body>
+</html>
